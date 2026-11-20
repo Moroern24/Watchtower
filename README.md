@@ -46,19 +46,19 @@ curl -XPOST localhost:8080/portals -H 'content-type: application/json' -d '{"url
    A portal that needs a login or captcha for its list or its documents is reported as `failed` and the reason says so. A captcha widget on a page whose documents still download is fine.
 6. **Politeness.** Every request goes through a per-host limiter that allows at most 1 request per second: pages, APIs, downloads and browser sessions. There are no logins and no captcha solving.
 
-The dashboard (`/`) is the operator's morning view — one self-contained HTML page, no build step,
-laid out master–detail (patterns from Better Stack / Uptime Kuma status consoles and Temporal-style
-run histories):
-- **Header:** one-line verdict ("1 portal needs a person · 1 healing"), compact add-portal form
-  (`POST /portals` → accepted / already monitored / rejected with the 400 reason), data freshness.
-- **Summary strip:** all portals + Failed, Healing, Integrating, Serving with what each state means;
-  click a card to filter.
-- **Master (left ~60%):** search by URL or id, problems first; state badge, full reason, recent-runs
-  strip, tenders (held / open), last success (or "never"), Refresh and Delete (with confirmation).
-- **Detail (right ~40%):** reason, state meaning, key stats, a larger run-history strip and two
-  tabs — **Runs** (timeline of `read`/`repair` with start, end or "still running", result, step log)
-  and **Tenders** (status filter, buyer, deadline in the portal's local time with offset, document
-  downloads with sizes). No manual steering of repairs.
+The dashboard (`/`) is the operator's morning view — one self-contained page, no build step,
+designed so the answer to "is everything fine?" takes a glance:
+- **Header:** one verdict ("1 portal needs you" / "All 4 portals delivering") and a paste-to-add field.
+- **State cards:** All / Failed / Healing / Integrating / Serving counts; click to filter.
+- **Portal list (left):** grouped into *Needs attention*, *Attaching* and *Working*. Each row: a
+  state dot, the portal, its tender count and when it last delivered; the reason is shown only when
+  something is wrong. Refresh / Delete appear on hover (always on touch screens).
+- **Portal detail (right):** a coloured callout saying what is happening and why, three facts
+  (tenders, last correct read, last checked), a recent-runs strip, and two tabs — **What happened**
+  (reads and repairs in plain words, click for the step log) and **Tenders** (status filter, buyer,
+  deadline in the portal's local time, document downloads with sizes). No manual steering.
+- **Look:** Patterno's visual language (navy + indigo, Inter, EB Garamond wordmark, pills); dark by
+  default with a light theme in the footer. Fonts fall back to system fonts offline.
 
 Code map: `PROJECT_INSTRUCTIONS.md`, `ARCHITECTURE.md`, `DECISIONS.md`.
 

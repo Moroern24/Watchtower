@@ -4,184 +4,204 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Watchtower</title>
+<script>/* theme before first paint: Patterno's dark by default, remembered per browser */
+(function(){var t="dark";try{t=localStorage.getItem("wt-theme")||"dark"}catch(e){}document.documentElement.dataset.theme=t})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-/* Calm, neutral operator console: colour is reserved for states and problems. */
-:root{--bg:#f6f7f9;--panel:#fff;--sunk:#f1f3f6;--ink:#111418;--muted:#5b6370;--faint:#8b929d;--line:#e3e6eb;
---hover:#f3f5f8;--sel:#eef3fe;--accent:#2f5bd3;
---ok:#16794a;--okbg:#e3f3ea;--okbar:#2fa66a;--warn:#8f5b00;--warnbg:#fcf0d8;--warnbar:#e0a020;
---bad:#b42318;--badbg:#fde8e5;--badbar:#e0483b;--info:#2f5bd3;--infobg:#e6edfc;--infobar:#5b84ee;--idle:#d5d9e0;
---mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--r:10px}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1013;--panel:#15181d;--sunk:#101317;--ink:#e7e9ed;--muted:#9aa2ad;
---faint:#6c7480;--line:#262b33;--hover:#1b1f26;--sel:#18213a;--accent:#7ea2ff;
---ok:#5fd29a;--okbg:#10291c;--okbar:#3fbf7f;--warn:#f0bf62;--warnbg:#30240d;--warnbar:#d9a33a;
---bad:#ff8b80;--badbg:#36150f;--badbar:#e5574a;--info:#86a8ff;--infobg:#16203a;--infobar:#5f86ea;--idle:#2c323b}}
-*{box-sizing:border-box}html{color-scheme:light dark}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+/* Patterno visual language (patterno.de): deep navy, quiet surfaces, indigo accent, Inter + EB Garamond wordmark.
+   Principle: one signal per place. Colour only for states; detail only where it is asked for. */
+:root,:root[data-theme="dark"]{
+--bg:#0a0a1a;--glow:rgba(99,102,241,.14);--panel:#0e0e1c;--sunk:rgba(255,255,255,.035);
+--ink:#fff;--muted:rgba(255,255,255,.6);--faint:rgba(255,255,255,.34);--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);
+--hover:rgba(255,255,255,.035);--sel:rgba(99,102,241,.13);--accent:#6366f1;--accent2:#a5b4fc;--accentbg:rgba(129,140,248,.12);
+--cta:#fff;--ctaink:#0a0a1a;
+--ok:#6ee7b7;--okbg:rgba(52,211,153,.1);--okdot:#34d399;--warn:#fbbf24;--warnbg:rgba(251,191,36,.1);--warndot:#f5b524;
+--bad:#fca5a5;--badbg:rgba(248,113,113,.11);--baddot:#f87171;--info:#a5b4fc;--infobg:rgba(129,140,248,.11);--infodot:#818cf8;
+--idle:rgba(255,255,255,.09)}
+:root[data-theme="light"]{
+--bg:#f5f5f7;--glow:rgba(99,102,241,.06);--panel:#fff;--sunk:#f5f5f7;
+--ink:#1d1d1f;--muted:#5c5c63;--faint:#8e8e93;--line:rgba(0,0,0,.07);--line2:rgba(0,0,0,.12);
+--hover:#f7f7f9;--sel:#eef0fe;--accent:#6366f1;--accent2:#4f46e5;--accentbg:#eef0fe;
+--cta:#0a0a1a;--ctaink:#fff;
+--ok:#047857;--okbg:#e8f6ef;--okdot:#10b981;--warn:#a16207;--warnbg:#fdf3dc;--warndot:#f59e0b;
+--bad:#b91c1c;--badbg:#fdeeee;--baddot:#ef4444;--info:#4f46e5;--infobg:#eef0fe;--infodot:#6366f1;
+--idle:#e5e5ea}
+:root{--sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--serif:"EB Garamond",Garamond,Georgia,serif;
+--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--r:16px}
+*{box-sizing:border-box}html{color-scheme:dark}:root[data-theme="light"]{color-scheme:light}
+body{margin:0;background:var(--bg) radial-gradient(1100px 380px at 15% -140px,var(--glow),transparent 70%) fixed;
+  color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
 button,input{font:inherit;color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button{padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;white-space:nowrap}
-button:hover{background:var(--hover)}button:disabled{opacity:.5;cursor:default}
-button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.primary:hover{filter:brightness(1.06)}
-button.sm{padding:3px 9px;font-size:12px}button.danger{color:var(--bad)}
-.muted{color:var(--muted)}.faint{color:var(--faint)}.ok{color:var(--ok)}.bad{color:var(--bad)}
+button{padding:6px 14px;border-radius:999px;border:1px solid var(--line2);background:transparent;cursor:pointer;white-space:nowrap;font-weight:500}
+button:hover{background:var(--hover)}button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--cta);border-color:var(--cta);color:var(--ctaink);font-weight:600}button.primary:hover{opacity:.9;background:var(--cta)}
+button.sm{padding:3px 11px;font-size:12px}
+button.quiet{border-color:transparent;color:var(--muted)}button.quiet:hover{color:var(--ink);background:var(--hover)}
+button.danger{color:var(--bad)}
+.faint{color:var(--faint)}.muted{color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--idle)}
+.d-serving{background:var(--okdot)}.d-healing{background:var(--warndot)}.d-failed{background:var(--baddot)}.d-integrating{background:var(--infodot)}
+.d-integrating,.d-healing{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.d-integrating,.d-healing{animation:none}}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 
 /* header */
-header{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--line)}
-.hrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 24px;max-width:1680px;margin:0 auto}
-.brand{display:flex;align-items:baseline;gap:12px;min-width:0;flex-wrap:wrap}
-.brand h1{font-size:16px;margin:0;letter-spacing:.1px}
-.verdict{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
-.verdict .vd{width:9px;height:9px;border-radius:50%;background:var(--okbar)}
-.verdict.warn .vd{background:var(--warnbar)}.verdict.bad .vd{background:var(--badbar)}.verdict.idle .vd{background:var(--idle)}
-.addform{display:flex;gap:6px;flex:1 1 380px;max-width:560px;margin-left:auto}
-.addform input{flex:1;min-width:0;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
-.fresh{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);white-space:nowrap}
-.fd{width:7px;height:7px;border-radius:50%;background:var(--okbar)}.fd.stale{background:var(--warnbar)}.fd.err{background:var(--badbar)}
-.flash{max-width:1680px;margin:0 auto;padding:0 24px 8px;font-size:13px}
+header{position:sticky;top:0;z-index:10;padding:12px 24px 0}
+.hbar{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:8px 10px 8px 22px;
+  background:color-mix(in srgb,var(--panel) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:999px}
+.brand{font:500 22px/1 var(--serif);letter-spacing:-.01em;margin:0}
+.verdict{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500}
+.verdict .dot{width:9px;height:9px}
+.addform{display:flex;gap:6px;flex:1 1 320px;max-width:500px;margin-left:auto}
+.addform input{flex:1;min-width:0;padding:7px 14px;border:1px solid var(--line2);border-radius:999px;background:var(--sunk)}
+input::placeholder{color:var(--faint)}
+.tag{font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;color:var(--warn);background:var(--warnbg);cursor:help;white-space:nowrap}
+.flash{max-width:1560px;margin:8px auto 0;padding:0 22px;font-size:13px;font-weight:500}
 .flash:empty{display:none}.flash.ok{color:var(--ok)}.flash.bad{color:var(--bad)}.flash.info{color:var(--info)}
-.sysline{max-width:1680px;margin:0 auto;padding:0 24px 8px;font-size:12px;color:var(--faint)}
-.sysline.warn{color:var(--warn)}
 
-main{max-width:1680px;margin:0 auto;padding:16px 24px 32px}
-.banner{background:var(--badbg);color:var(--bad);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px}
+main{max-width:1560px;margin:0 auto;padding:20px 24px 24px}
+.banner{background:var(--badbg);color:var(--bad);border-radius:12px;padding:9px 14px;margin-bottom:14px;font-size:13px}
 
-/* summary strip */
-.strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
-.card{text-align:left;padding:11px 14px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);cursor:pointer;white-space:normal}
-.card:hover{background:var(--hover)}
-.card.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.card .lbl{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);text-transform:capitalize}
-.card .lbl i{width:8px;height:8px;border-radius:50%;background:var(--idle)}
-.card .n{font-size:28px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums;margin-top:2px}
-.card .d{font-size:12px;color:var(--faint);margin-top:2px;line-height:1.3}
-.card.c-failed .lbl i{background:var(--badbar)}.card.c-healing .lbl i{background:var(--warnbar)}
-.card.c-integrating .lbl i{background:var(--infobar)}.card.c-serving .lbl i{background:var(--okbar)}
-.card.c-failed.has .n{color:var(--bad)}.card.c-healing.has .n{color:var(--warn)}
+/* state filters */
+.strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 18px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--panel);cursor:pointer;text-align:left}
+.card:hover{border-color:var(--line2);background:var(--panel)}
+.card.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentbg)}
+.card .lbl{display:flex;align-items:center;gap:8px}
+.card .n{font-size:32px;font-weight:300;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.card.zero .n{color:var(--faint)}
+.card.c-failed:not(.zero) .n{color:var(--bad)}.card.c-healing:not(.zero) .n{color:var(--warn)}
 
-/* master-detail */
+/* master–detail */
 .md{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);min-width:0}
-.lhead{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
-.lhead input{flex:1;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
-.ftag{font-size:12px;color:var(--muted);white-space:nowrap}.ftag button{margin-left:6px}
-.cols,.row{display:grid;grid-template-columns:minmax(0,1fr) 84px 118px 128px;gap:12px}
-.cols{padding:7px 14px;font-size:11px;font-weight:600;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line)}
-.row{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;position:relative}
-.row:last-child{border-bottom:0}.row:hover{background:var(--hover)}
-.row.sel{background:var(--sel)}.row.sel:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
-.rt{display:flex;align-items:center;gap:8px;min-width:0}
-.url{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
-.pid{font-family:var(--mono);font-size:11px;color:var(--faint)}
-.reason{font-size:13px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
-.row.st-failed .reason,.dreason.st-failed{color:var(--bad)}.row.st-healing .reason,.dreason.st-healing{color:var(--warn)}
-.metric{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}.metric small{display:block;color:var(--faint);font-size:11px;white-space:normal}
-.acts{display:flex;gap:6px;justify-content:flex-end;align-items:flex-start}
-.badge{display:inline-flex;align-items:center;gap:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;flex:none}
-.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.badge.serving{color:var(--ok);background:var(--okbg)}.badge.healing{color:var(--warn);background:var(--warnbg)}
-.badge.failed{color:var(--bad);background:var(--badbg)}.badge.integrating{color:var(--info);background:var(--infobg)}
-.live{font-size:11px;color:var(--info);white-space:nowrap}
-.beats{display:flex;gap:2px;margin-top:7px;height:14px}
-.beats i{flex:0 0 6px;border-radius:2px;background:var(--idle)}
-.beats i.ok{background:var(--okbar)}.beats i.failed{background:var(--badbar)}.beats i.run{background:var(--infobar)}
-.beats i.repair{box-shadow:inset 0 0 0 1.5px var(--warnbar)}
-.beats.big{height:22px;gap:3px}.beats.big i{flex:1 1 0;max-width:16px}
-.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+.search{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.search input{flex:1;min-width:0;padding:7px 14px;border:1px solid var(--line2);border-radius:999px;background:var(--sunk)}
+.group{padding:14px 18px 6px;display:flex;align-items:center;gap:8px}
+.group .c{color:var(--faint);font-size:11px;font-weight:600}
+.row{display:grid;grid-template-columns:8px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:11px 18px;cursor:pointer;
+  border-top:1px solid var(--line);position:relative}
+.group+.row{border-top:0}
+.row:hover{background:var(--hover)}.row.sel{background:var(--sel)}
+.row.sel:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.name{font-weight:500;overflow-wrap:anywhere}.path{font-family:var(--mono);font-size:12px;color:var(--faint);overflow-wrap:anywhere}
+.why{font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+.why.failed{color:var(--bad)}.why.healing{color:var(--warn)}.why.integrating{color:var(--info)}
+.side{text-align:right;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.side small{display:block;font-size:12px;color:var(--faint)}
+.acts{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+.row:hover .acts,.row.sel .acts,.row:focus-within .acts{opacity:1}
+@media (hover:none){.acts{opacity:1}}
+.empty{padding:48px 18px;text-align:center;color:var(--muted)}
+.empty .big{font-size:15px;color:var(--ink);margin-bottom:4px}
 
 /* detail */
-.detail{position:sticky;top:var(--hh,96px);max-height:calc(100vh - var(--hh,96px) - 16px);overflow:auto}
-.dhead{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
-.dtop{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dtop .sp{flex:1}
-.dreason{font-size:13px;margin-top:8px;overflow-wrap:anywhere}
-.hint{font-size:12px;color:var(--muted);background:var(--sunk);border-radius:8px;padding:7px 10px;margin-top:10px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
-.stat{background:var(--sunk);border-radius:8px;padding:7px 10px;min-width:0}
-.stat small{display:block;font-size:11px;color:var(--faint)}.stat b{font-size:14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.legend{font-size:11px;color:var(--faint);display:flex;justify-content:space-between;gap:8px;margin-top:3px;flex-wrap:wrap}
-.tabs{display:flex;gap:2px;padding:0 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
-.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:9px 10px;color:var(--muted)}
+.detail{position:sticky;top:var(--hh,90px);max-height:calc(100vh - var(--hh,90px) - 16px);overflow:auto}
+.dhead{padding:18px 20px 16px}
+.dtitle{display:flex;align-items:flex-start;gap:10px}
+.dtitle h2{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em;overflow-wrap:anywhere;flex:1}
+.durl{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:4px;overflow-wrap:anywhere}
+.callout{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--sunk)}
+.callout b{display:flex;align-items:center;gap:8px;font-size:13px}
+.callout p{margin:4px 0 0;font-size:13.5px;overflow-wrap:anywhere}
+.callout.failed{background:var(--badbg)}.callout.failed b{color:var(--bad)}
+.callout.healing{background:var(--warnbg)}.callout.healing b{color:var(--warn)}
+.callout.integrating{background:var(--infobg)}.callout.integrating b{color:var(--info)}
+.callout.serving{background:var(--okbg)}.callout.serving b{color:var(--ok)}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.facts div{min-width:0}.facts b{display:block;font-size:20px;font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.facts small{font-size:12px;color:var(--faint)}
+.dacts{display:flex;gap:8px;margin-top:16px;align-items:center}.dacts .sp{flex:1}
+.hist{margin-top:16px}
+.beats{display:flex;gap:3px;height:20px;margin-top:6px}
+.beats i{flex:1 1 0;max-width:14px;border-radius:3px;background:var(--idle)}
+.beats i.ok{background:var(--okdot)}.beats i.failed{background:var(--baddot)}.beats i.run{background:var(--infodot)}
+.tabs{display:flex;gap:4px;padding:0 16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1}
+.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:10px 8px;color:var(--muted)}
 .tab:hover{background:none;color:var(--ink)}.tab.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
-.tbody{padding:12px 16px 16px}
-/* runs timeline */
-.tl{list-style:none;margin:0;padding:0}
-.ev{position:relative;padding:0 0 12px 22px}
-.ev:before{content:"";position:absolute;left:5px;top:14px;bottom:0;width:2px;background:var(--line)}
-.ev:last-child:before{display:none}
-.ev .pt{position:absolute;left:0;top:4px;width:12px;height:12px;border-radius:50%;background:var(--idle);border:2px solid var(--panel)}
-.ev.e-ok .pt{background:var(--okbar)}.ev.e-failed .pt{background:var(--badbar)}.ev.e-run .pt{background:var(--infobar)}
-.ev summary{list-style:none;cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
-.ev summary::-webkit-details-marker{display:none}
-.kind{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:0 6px;border-radius:4px;background:var(--sunk)}
-.kind.repair{color:var(--warn);background:var(--warnbg)}
-.when{font-size:12px;color:var(--muted)}
-.rr{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}.ev.e-failed .rr{color:var(--bad)}
-.ev pre{margin:6px 0 0;padding:8px 10px;border-radius:8px;background:var(--sunk);font:11.5px/1.5 var(--mono);white-space:pre-wrap;
-  max-height:260px;overflow:auto;color:var(--muted)}
+.tbody{padding:6px 20px 18px}
+/* runs */
+.run{border-top:1px solid var(--line)}.run:first-child{border-top:0}
+.run summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0}
+.run summary::-webkit-details-marker{display:none}
+.run .what{font-weight:500}.run .what span{font-weight:400;color:var(--muted)}
+.run .when{font-size:12px;color:var(--faint);white-space:nowrap}
+.run .note{grid-column:2/-1;font-size:12.5px;color:var(--muted);margin-top:-6px;padding-bottom:2px;overflow-wrap:anywhere}
+.run .note.failed{color:var(--bad)}
+.run pre{margin:0 0 10px 18px;padding:10px 12px;border-radius:10px;background:var(--sunk);font:11.5px/1.55 var(--mono);
+  white-space:pre-wrap;max-height:240px;overflow:auto;color:var(--muted)}
+.more{font-size:12px;color:var(--accent2);cursor:pointer}
 /* tenders */
-.tfil{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-.chip{border-radius:999px;padding:2px 10px;font-size:12px}.chip.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
-.chip .c{opacity:.65;margin-left:4px}
-.tender{padding:9px 0;border-top:1px solid var(--line)}.tfil+.tender{border-top:0}
-.tender a.t{color:var(--ink);text-decoration:none;font-weight:550;overflow-wrap:anywhere}.tender a.t:hover{color:var(--accent)}
-.meta{font-size:12px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
-.st{font-size:11px;font-weight:600;padding:0 7px;border-radius:999px}
-.st.open{color:var(--ok);background:var(--okbg)}.st.closed{color:var(--muted);background:var(--sunk)}.st.withdrawn{color:var(--bad);background:var(--badbg)}
-.docs{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:4px;font-size:12px}
-.docs a{color:var(--accent);text-decoration:none;overflow-wrap:anywhere}.docs a:hover{text-decoration:underline}
+.tfil{display:flex;gap:6px;flex-wrap:wrap;padding:12px 0 4px}
+.chip{border-radius:999px;padding:2px 11px;font-size:12px}.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .c{opacity:.6;margin-left:5px}
+.tender{padding:11px 0;border-top:1px solid var(--line)}.tfil+.tender{border-top:0}
+.tender a.t{color:var(--ink);text-decoration:none;font-weight:500;overflow-wrap:anywhere}.tender a.t:hover{color:var(--accent2)}
+.meta{font-size:12.5px;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.st{font-size:11px;font-weight:600;margin-right:6px}.st.open{color:var(--ok)}.st.closed{color:var(--faint)}.st.withdrawn{color:var(--bad)}
+.docs{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font-size:12.5px}
+.docs a{color:var(--accent2);text-decoration:none;overflow-wrap:anywhere}.docs a:hover{text-decoration:underline}
+.docs .sz{color:var(--faint);margin-left:4px}
+
+footer{max-width:1560px;margin:0 auto;padding:4px 24px 28px;font-size:12px;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap}
+footer button{padding:0;border:0;color:var(--faint);font-size:12px}footer button:hover{color:var(--ink);background:none}
 
 @media (max-width:1180px){.md{grid-template-columns:minmax(0,1fr)}.detail{position:static;max-height:none}}
-@media (max-width:900px){.strip{grid-template-columns:repeat(3,minmax(0,1fr))}.strip .card:first-child{grid-column:1/-1}}
+@media (max-width:900px){.strip{grid-template-columns:repeat(3,minmax(0,1fr))}.strip .card:first-child{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between}}
 @media (max-width:760px){
-  .hrow,.flash,.sysline,main{padding-left:16px;padding-right:16px}
+  header{padding:8px 12px 0}.hbar{border-radius:20px;padding:10px 12px}.flash{padding:0 12px}main{padding:16px 12px}footer{padding:4px 12px 24px}
   .addform{flex-basis:100%;max-width:none;margin-left:0}
-  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}.card .d{display:none}
-  .cols{display:none}.row{grid-template-columns:1fr 1fr}.row .main{grid-column:1/-1}.row .acts{justify-content:flex-start}
-  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .row{grid-template-columns:8px minmax(0,1fr) auto}.row .acts{grid-column:2/-1}
 }
 </style>
 </head>
 <body>
 <header id="hdr">
-  <div class="hrow">
-    <div class="brand"><h1>Watchtower</h1><span class="verdict idle" id="verdict"><span class="vd"></span><span id="vtext">Loading…</span></span></div>
+  <div class="hbar">
+    <h1 class="brand">Watchtower</h1>
+    <div class="verdict" id="verdict"><span class="dot"></span><span id="vtext">Loading…</span></div>
     <form class="addform" id="add" novalidate>
       <input id="newurl" type="text" inputmode="url" autocomplete="off" spellcheck="false"
-             placeholder="Add portal by address — https://…" aria-label="Portal address">
-      <button class="primary" id="addbtn">Add</button>
+             placeholder="Paste a portal address to watch it" aria-label="Portal address">
+      <button class="primary" id="addbtn">Add portal</button>
     </form>
-    <div class="fresh" aria-live="polite"><span class="fd" id="fd"></span><span id="fresh">Updating…</span></div>
+    <span id="keytag"></span>
   </div>
   <div class="flash" id="flash" role="status"></div>
-  <div class="sysline" id="sys"></div>
 </header>
 
 <main>
   <div id="banner"></div>
-  <section class="strip" id="strip" aria-label="Portal states"></section>
+  <section class="strip" id="strip" aria-label="Filter by state"></section>
   <section class="md">
     <div class="box" aria-label="Portals">
-      <div class="lhead">
-        <input id="q" type="search" placeholder="Search by URL or ID   ( / )" aria-label="Search portals">
-        <span class="ftag" id="ftag"></span>
-      </div>
-      <div class="cols" aria-hidden="true"><span>Portal · reason · recent runs</span><span>Tenders</span><span>Last success</span><span style="text-align:right">Actions</span></div>
+      <div class="search"><input id="q" type="search" placeholder="Search portals" aria-label="Search portals by URL or ID"></div>
       <div id="list"><div class="empty">Loading…</div></div>
     </div>
-    <aside class="box detail" id="detail" aria-label="Portal details"><div class="empty">Select a portal to see what the system did.</div></aside>
+    <aside class="box detail" id="detail" aria-label="Portal details"></aside>
   </section>
 </main>
+<footer><span id="fresh">Updating…</span><span id="sys"></span><button id="theme" type="button">Light theme</button></footer>
 
 <script>
 "use strict";
 const POLL_MS = 5000;
 const ORDER = ["failed", "healing", "integrating", "serving"];
-const MEANING = {
-  failed: "Cannot deliver — a person is needed. The reason says why.",
-  healing: "Broken; automatic repair running. Last correct tenders still served.",
-  integrating: "Being attached. No tenders delivered yet.",
-  serving: "Delivering correctly."
+// What each state means for the operator, in plain words.
+const STATE = {
+  failed:      {label: "Failed",      headline: "Needs a person",           note: "Cannot deliver; Watchtower could not fix this on its own."},
+  healing:     {label: "Healing",     headline: "Repairing automatically",  note: "Last correct tenders are still being delivered."},
+  integrating: {label: "Integrating", headline: "Being attached",           note: "Learning how to read this portal. No tenders yet."},
+  serving:     {label: "Serving",     headline: "Delivering correctly",     note: ""}
 };
-const S = {portals: [], sys: null, filter: "all", q: "", sel: null, tab: "runs", tst: "all",
-           lastOk: 0, err: null, lsig: "", dsig: "", detail: null, busy: new Set(), firstLoad: true};
+const GROUPS = [["Needs attention", ["failed", "healing"]], ["Attaching", ["integrating"]], ["Working", ["serving"]]];
+const S = {portals: [], sys: null, filter: "all", q: "", sel: null, tab: "runs", tst: "all", showAllRuns: false,
+           lastOk: 0, err: null, lsig: "", dsig: "", detail: null, busy: new Set(), first: true};
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -189,17 +209,21 @@ const ago = iso => { if (!iso) return null; const s = (Date.now() - new Date(iso
   if (s < 45) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago";
   if (s < 86400) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago"; };
 const abs = iso => iso ? new Date(iso).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}) : "";
-const clock = iso => iso ? new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"}) : "";
 const portalTime = iso => { if (!iso) return "not shown";
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?(Z|[+-]\d{2}:\d{2})$/.exec(iso);
-  return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]} UTC${m[6] === "Z" ? "+00:00" : m[6]}` : iso; };
+  return m ? `${m[3]}.${m[2]}.${m[1]}, ${m[4]}:${m[5]} (UTC${m[6] === "Z" ? "+00:00" : m[6]})` : iso; };
 const size = b => b == null ? "" : b < 1024 ? b + " B" : b < 1048576 ? Math.round(b / 1024) + " KB"
   : (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + " MB";
 const dur = (a, b) => { const s = Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000));
-  return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s"; };
+  return s < 60 ? s + " s" : Math.floor(s / 60) + " min"; };
 const usd = v => "$" + (v || 0).toFixed(v >= 1 ? 2 : 3);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const enc = encodeURIComponent;
 const wide = () => matchMedia("(min-width:1181px)").matches;
+function split(url) {            // "https://host/path?x" -> ["host", "/path?x"]
+  try { const u = new URL(url); return [u.host.replace(/^www\./, ""), (u.pathname + u.search + u.hash).replace(/^\/$/, "")]; }
+  catch (e) { return [url, ""]; }
+}
 
 class ApiError extends Error { constructor(st, m) { super(m); this.status = st; } }
 async function api(url, opt) {
@@ -210,26 +234,20 @@ async function api(url, opt) {
   return b;
 }
 
-/* ------------------------------------------------------------ data */
+/* ---------------------------------------------------------------- data */
 async function poll() {
   try {
     const [ps, sys] = await Promise.all([api("/portals?full=true"), api("/system")]);
     S.portals = ps; S.sys = sys; S.lastOk = Date.now(); S.err = null;
-    if (S.firstLoad) {   // on a wide screen, open the most urgent portal right away
-      S.firstLoad = false;
-      if (!S.sel && ps.length && wide()) S.sel = sorted(ps)[0].id;
-    }
-    renderAll();
-    await loadDetail();
+    if (S.first) { S.first = false; if (!S.sel && ps.length && wide()) S.sel = sorted(ps)[0].id; }
+    renderTop(); renderList(); await loadDetail();
   } catch (e) { S.err = e.message; renderFresh(); }
 }
-
 async function loadDetail() {
   const id = S.sel; if (!id) return renderDetail();
   if (!S.portals.some(p => p.id === id)) { S.detail = {gone: true}; return renderDetail(); }
   try {
-    const [runs, tenders] = await Promise.all([api(`/portals/${enc(id)}/runs?steps=true`),
-                                               api(`/portals/${enc(id)}/tenders`)]);
+    const [runs, tenders] = await Promise.all([api(`/portals/${enc(id)}/runs?steps=true`), api(`/portals/${enc(id)}/tenders`)]);
     if (S.sel !== id) return;
     S.detail = {runs, tenders};
   } catch (e) {
@@ -239,231 +257,221 @@ async function loadDetail() {
   renderDetail();
 }
 
-/* ------------------------------------------------------------ header + strip */
-function renderAll() { renderFresh(); renderHeader(); renderStrip(); renderList(); }
+/* ---------------------------------------------------------------- top: verdict, filters, footer */
+const count = st => S.portals.filter(p => p.state === st).length;
+function renderTop() {
+  renderFresh();
+  const n = S.portals.length, f = count("failed"), h = count("healing"), i = count("integrating"), s = count("serving");
+  let dot = "", txt;
+  if (!n) txt = "No portals yet";
+  else if (f) { dot = "d-failed"; txt = `${plural(f, "portal")} need${f === 1 ? "s" : ""} you` + (h ? ` · ${h} repairing` : ""); }
+  else if (h) { dot = "d-healing"; txt = `${plural(h, "portal")} repairing automatically`; }
+  else if (i && !s) { dot = "d-integrating"; txt = `Attaching ${plural(i, "portal")}…`; }
+  else { dot = "d-serving"; txt = `All ${plural(s, "portal")} delivering`; }
+  $("verdict").querySelector(".dot").className = "dot " + dot; $("vtext").textContent = txt;
 
+  const sys = S.sys || {};
+  $("keytag").innerHTML = sys.modelKeyConfigured === false
+    ? `<span class="tag" title="ANTHROPIC_API_KEY is not set. Portals already attached keep working; new portals cannot be learned.">No model key</span>` : "";
+  $("sys").textContent = sys.model ? `Model ${sys.model} · reads every ${sys.readIntervalMin} min · model cost ${usd(sys.totalModelCostUsd)}` : "";
+
+  const card = (key, label, num) => `<button class="card c-${key} ${num ? "" : "zero"} ${S.filter === key ? "on" : ""}" data-f="${key}"
+      aria-pressed="${S.filter === key}" title="${key === "all" ? "Show all portals" : esc(STATE[key].headline + ". " + STATE[key].note)}">
+      <span class="lbl">${key === "all" ? "" : `<span class="dot d-${key}" style="animation:none"></span>`}<span class="label">${label}</span></span>
+      <span class="n">${num}</span></button>`;
+  const html = card("all", "All portals", n) + ORDER.map(st => card(st, STATE[st].label, count(st))).join("");
+  if ($("strip").innerHTML !== html) {
+    $("strip").innerHTML = html;
+    $("strip").querySelectorAll("[data-f]").forEach(b => b.onclick = () => setFilter(S.filter === b.dataset.f ? "all" : b.dataset.f));
+  }
+}
 function renderFresh() {
   const age = S.lastOk ? Math.round((Date.now() - S.lastOk) / 1000) : null;
-  $("fd").className = "fd" + (S.err ? " err" : age > 3 * POLL_MS / 1000 ? " stale" : "");
-  $("fresh").textContent = S.err ? "Update failed" + (S.lastOk ? ` · data ${age}s old` : "")
-    : S.lastOk ? `Updated ${new Date(S.lastOk).toLocaleTimeString()}` : "Updating…";
-  $("fresh").title = `Refreshes in the background every ${POLL_MS / 1000}s`;
+  $("fresh").textContent = S.err ? `Update failed${S.lastOk ? ` · last data ${age}s old` : ""}`
+    : S.lastOk ? `Updated ${new Date(S.lastOk).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"})} · refreshes every ${POLL_MS / 1000}s` : "Updating…";
   const html = S.err && (!S.lastOk || age > 15)
-    ? `<div class="banner">Cannot reach the Watchtower API (${esc(S.err)}).${S.lastOk ? ` Showing data from ${age}s ago.` : ""} Retrying…</div>` : "";
+    ? `<div class="banner">Can’t reach Watchtower (${esc(S.err)}). ${S.lastOk ? `Showing data from ${age}s ago. ` : ""}Retrying…</div>` : "";
   if ($("banner").innerHTML !== html) $("banner").innerHTML = html;
 }
 
-function count(st) { return S.portals.filter(p => p.state === st).length; }
-
-function renderHeader() {
-  const n = S.portals.length, f = count("failed"), h = count("healing"), i = count("integrating"), s = count("serving");
-  let cls = "", txt;
-  if (!n) { cls = "idle"; txt = "No portals yet"; }
-  else if (f) { cls = "bad"; txt = `${f} portal${f > 1 ? "s" : ""} need${f > 1 ? "" : "s"} a person` + (h ? ` · ${h} healing` : ""); }
-  else if (h) { cls = "warn"; txt = `${h} portal${h > 1 ? "s" : ""} healing automatically`; }
-  else if (i && !s) { cls = "idle"; txt = `Attaching ${i} portal${i > 1 ? "s" : ""}…`; }
-  else txt = `All ${s} serving portal${s > 1 ? "s" : ""} delivering` + (i ? ` · ${i} attaching` : "");
-  $("verdict").className = "verdict " + cls; $("vtext").textContent = txt;
-  const sys = S.sys;
-  $("sys").className = "sysline" + (sys && !sys.modelKeyConfigured ? " warn" : "");
-  $("sys").textContent = !sys ? "" : (sys.modelKeyConfigured ? "" : "No model key configured — new portals cannot be learned. ")
-    + `Model ${sys.model} · browser for JS portals ${sys.browserAvailable ? "available" : "off"} · regular reads every ${sys.readIntervalMin} min without model calls · model cost so far ${usd(sys.totalModelCostUsd)}`;
-}
-
-function renderStrip() {
-  const card = (key, label, num, desc) => `<button class="card c-${key} ${num ? "has" : ""} ${S.filter === key ? "on" : ""}"
-      data-f="${key}" aria-pressed="${S.filter === key}"><span class="lbl">${key === "all" ? "" : "<i></i>"}${label}</span>
-      <div class="n">${num}</div><div class="d">${desc}</div></button>`;
-  const open = S.portals.reduce((a, p) => a + (p.openCount || 0), 0);
-  const html = card("all", "All portals", S.portals.length, `${open} open tender${open === 1 ? "" : "s"} held`)
-    + ORDER.map(st => card(st, st, count(st), MEANING[st])).join("");
-  if ($("strip").innerHTML === html) return;
-  $("strip").innerHTML = html;
-  $("strip").querySelectorAll("[data-f]").forEach(b => b.onclick = () => setFilter(S.filter === b.dataset.f ? "all" : b.dataset.f));
-}
-
-/* ------------------------------------------------------------ master list */
+/* ---------------------------------------------------------------- list */
 function sorted(ps) {
   const rank = {failed: 0, healing: 1, integrating: 2, serving: 3};
   return [...ps].sort((a, b) => rank[a.state] - rank[b.state] || a.url.localeCompare(b.url));
 }
-function visible() {
+function matches(p) {
   const q = S.q.trim().toLowerCase();
-  return sorted(S.portals).filter(p => (S.filter === "all" || p.state === S.filter)
-    && (!q || p.url.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)));
+  return (S.filter === "all" || p.state === S.filter) && (!q || p.url.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
 }
-function beats(runs, big) {
-  const N = big ? 24 : 16, rs = (runs || []).slice(-N);
-  const pad = Array(Math.max(0, N - rs.length)).fill("<i></i>").join("");
-  return `<div class="beats ${big ? "big" : ""}" role="img" aria-label="Last ${rs.length} runs">${pad}${rs.map(r => {
-    const c = r.result === "ok" ? "ok" : r.result === "failed" ? "failed" : "run";
-    return `<i class="${c}${r.kind === "repair" ? " repair" : ""}" title="${esc(r.kind)} · ${esc(r.result || "running")} · ${esc(abs(r.startedAt))}"></i>`;
-  }).join("")}</div>`;
+function rowHtml(p) {
+  const [host, path] = split(p.url), busy = S.busy.has(p.id);
+  const why = p.state === "serving" ? "" : `<div class="why ${esc(p.state)}">${esc(p.reason || STATE[p.state].note)}</div>`;
+  const last = ago(p.lastSuccessAt);
+  return `<div class="row ${p.id === S.sel ? "sel" : ""}" data-id="${esc(p.id)}" tabindex="0" role="button"
+      aria-label="${esc(host + path)}, ${esc(p.state)}">
+    <span class="dot d-${esc(p.state)}" title="${esc(STATE[p.state].label)}"></span>
+    <div style="min-width:0"><span class="name">${esc(host)}</span> <span class="path">${esc(path)}</span>${why}</div>
+    <div class="side">${plural(p.tenderCount, "tender")}<small>${last ? "updated " + esc(last) : p.state === "integrating" ? "attaching…" : "no correct read yet"}</small></div>
+    <div class="acts">
+      <button class="sm quiet" data-act="refresh" ${busy || p.activeRunId ? "disabled" : ""} title="Read again now">${p.activeRunId ? "Reading…" : "Refresh"}</button>
+      <button class="sm quiet danger" data-act="delete" ${busy ? "disabled" : ""} title="Stop watching this portal">Delete</button></div></div>`;
 }
-
 function renderList() {
   const sig = JSON.stringify([S.portals, S.filter, S.q, S.sel, [...S.busy]]);
-  if (sig === S.lsig) return;          // nothing changed → leave the DOM alone (no flicker, no lost clicks)
+  if (sig === S.lsig) return;           // unchanged → keep the DOM (no flicker, no lost clicks)
   S.lsig = sig;
-  $("ftag").innerHTML = S.filter === "all" ? "" : `Showing <b>${esc(S.filter)}</b><button class="sm" id="fclear">Show all</button>`;
-  if ($("fclear")) $("fclear").onclick = () => setFilter("all");
-  const el = $("list"), list = visible();
-  if (!S.portals.length) { el.innerHTML = `<div class="empty">No portals yet.<br>Add a portal address in the header to start.</div>`; return; }
+  const el = $("list");
+  if (!S.portals.length) {
+    el.innerHTML = `<div class="empty"><div class="big">Nothing watched yet</div>Paste a portal address in the bar above — Watchtower attaches it on its own.</div>`; return;
+  }
+  const list = sorted(S.portals).filter(matches);
   if (!list.length) {
-    el.innerHTML = `<div class="empty">No ${S.filter !== "all" ? esc(S.filter) + " " : ""}portals${S.q ? ` match “${esc(S.q)}”` : ""}.
-      <div style="margin-top:8px"><button class="sm" id="reset">Clear filter and search</button></div></div>`;
+    el.innerHTML = `<div class="empty"><div class="big">No matching portals</div>
+      <button class="sm" id="reset" style="margin-top:8px">Show all portals</button></div>`;
     $("reset").onclick = () => { S.q = ""; $("q").value = ""; setFilter("all"); }; return;
   }
-  el.innerHTML = list.map(p => {
-    const busy = S.busy.has(p.id), last = ago(p.lastSuccessAt);
-    return `<div class="row st-${esc(p.state)} ${p.id === S.sel ? "sel" : ""}" data-id="${esc(p.id)}" tabindex="0"
-        role="button" aria-label="${esc(p.url)}, ${esc(p.state)}" aria-current="${p.id === S.sel}">
-      <div class="main"><div class="rt"><span class="badge ${esc(p.state)}" title="${esc(MEANING[p.state])}">${esc(p.state)}</span>
-          <span class="url">${esc(p.url)}</span></div>
-        <div class="pid">${esc(p.id)}${p.activeRunId ? ` · <span class="live">● run in progress</span>` : ""}</div>
-        <div class="reason">${esc(p.reason || "")}</div>${beats(p.recentRuns, false)}</div>
-      <div class="metric"><b>${p.tenderCount}</b><small>${p.openCount ?? 0} open</small></div>
-      <div class="metric" title="${esc(abs(p.lastSuccessAt))}">${last ? esc(last) : `<span class="faint">never</span>`}
-        <small>${p.lastSuccessAt ? esc(abs(p.lastSuccessAt)) : "no correct read yet"}</small></div>
-      <div class="acts">
-        <button class="sm" data-act="refresh" ${busy || p.activeRunId ? "disabled" : ""} title="Read the portal again now">Refresh</button>
-        <button class="sm danger" data-act="delete" ${busy ? "disabled" : ""} title="Remove the portal">Delete</button></div></div>`;
+  el.innerHTML = GROUPS.map(([title, states]) => {
+    const g = list.filter(p => states.includes(p.state));
+    return g.length ? `<div class="group"><span class="label">${title}</span><span class="c">${g.length}</span></div>` + g.map(rowHtml).join("") : "";
   }).join("");
 }
 
-/* ------------------------------------------------------------ detail */
+/* ---------------------------------------------------------------- detail */
+function beats(runs) {
+  const N = 24, rs = (runs || []).slice(-N);
+  return `<div class="beats" role="img" aria-label="Last ${rs.length} runs">${Array(Math.max(0, N - rs.length)).fill("<i></i>").join("")}${rs.map(r =>
+    `<i class="${r.result === "ok" ? "ok" : r.result === "failed" ? "failed" : "run"}" title="${esc(r.kind)} ${esc(r.result || "running")} · ${esc(abs(r.startedAt))}"></i>`).join("")}</div>`;
+}
 function renderDetail() {
   const box = $("detail");
-  if (!S.sel) { if (S.dsig !== "none") { S.dsig = "none"; box.innerHTML = `<div class="empty">Select a portal to see what the system did.</div>`; } return; }
+  if (!S.sel) {
+    if (S.dsig !== "none") { S.dsig = "none"; box.innerHTML = `<div class="empty"><div class="big">Select a portal</div>to see what Watchtower did and which tenders it holds.</div>`; }
+    return;
+  }
   const p = S.portals.find(x => x.id === S.sel), d = S.detail || {};
-  const sig = JSON.stringify([p, d, S.tab, S.tst, S.busy.has(S.sel)]);
+  const sig = JSON.stringify([p, d, S.tab, S.tst, S.showAllRuns, S.busy.has(S.sel)]);
   if (sig === S.dsig) return;
   S.dsig = sig;
   if (d.gone || !p) {
-    box.innerHTML = `<div class="dhead"><div class="dtop"><b>Portal not found</b><span class="sp"></span><button class="sm" data-close>Close</button></div>
-      <p class="muted" style="margin:8px 0 0">This portal no longer exists (404) — it was probably deleted.</p></div>`;
-    box.querySelector("[data-close]").onclick = () => select(null); return;
+    box.innerHTML = `<div class="empty"><div class="big">This portal no longer exists</div>It was deleted (404).
+      <div><button class="sm" id="dclose" style="margin-top:10px">Close</button></div></div>`;
+    $("dclose").onclick = () => select(null); return;
   }
-  const open = new Set([...box.querySelectorAll("details[open]")].map(x => x.dataset.k));
-  const keepScroll = box.scrollTop;
-  const runs = d.runs, tenders = d.tenders, u = p.modelUsage || {};
+  const openLogs = new Set([...box.querySelectorAll("details[open]")].map(x => x.dataset.k));
+  const scroll = box.scrollTop;
+  const [host, path] = split(p.url), st = STATE[p.state], u = p.modelUsage || {};
+  const reason = p.state === "serving" ? (p.reason || "") : (p.reason || st.note);
   box.innerHTML = `<div class="dhead">
-      <div class="dtop"><span class="badge ${esc(p.state)}">${esc(p.state)}</span>
-        ${p.activeRunId ? `<span class="live">● run in progress</span>` : ""}<span class="sp"></span>
-        <button class="sm" data-act="refresh" ${p.activeRunId || S.busy.has(p.id) ? "disabled" : ""}>Refresh</button>
-        <button class="sm danger" data-act="delete" ${S.busy.has(p.id) ? "disabled" : ""}>Delete</button>
-        <button class="sm" data-close aria-label="Close details" title="Close (Esc)">✕</button></div>
-      <div class="url" style="margin-top:10px">${esc(p.url)}</div><div class="pid">${esc(p.id)}</div>
-      <div class="dreason st-${esc(p.state)}">${esc(p.reason || "—")}</div>
-      <div class="hint">${esc(MEANING[p.state])}</div>
-      <div class="stats">
-        <div class="stat"><small>Tenders</small><b>${p.tenderCount}</b> <span class="faint">${p.openCount ?? 0} open</span></div>
-        <div class="stat" title="${esc(abs(p.lastSuccessAt))}"><small>Last success</small><b>${p.lastSuccessAt ? esc(ago(p.lastSuccessAt)) : "never"}</b></div>
-        <div class="stat" title="${esc(abs(p.lastReadAt))}"><small>Last read</small><b>${p.lastReadAt ? esc(ago(p.lastReadAt)) : "never"}</b></div>
-        <div class="stat" title="${u.llmCalls || 0} model calls · ${(u.inputTokens || 0).toLocaleString()} in / ${(u.outputTokens || 0).toLocaleString()} out tokens"><small>Model cost</small><b>${usd(u.costUsd)}</b> <span class="faint">${u.llmCalls || 0} calls</span></div>
+      <div class="dtitle"><h2>${esc(host)}</h2><button class="sm quiet" id="dclose" aria-label="Close details" title="Close (Esc)">✕</button></div>
+      <div class="durl">${esc(p.url)}</div>
+      <div class="callout ${esc(p.state)}"><b><span class="dot d-${esc(p.state)}"></span>${esc(st.headline)}</b>
+        <p>${esc(reason)}</p>${p.state === "healing" && p.reason ? `<p class="muted" style="font-size:12.5px">${esc(st.note)}</p>` : ""}</div>
+      <div class="facts">
+        <div><small>Tenders</small><b>${p.tenderCount}</b><small>${p.openCount ?? 0} open</small></div>
+        <div title="${esc(abs(p.lastSuccessAt))}"><small>Last correct read</small><b>${p.lastSuccessAt ? esc(ago(p.lastSuccessAt)) : "never"}</b></div>
+        <div title="${esc(abs(p.lastReadAt))}"><small>Last checked</small><b>${p.lastReadAt ? esc(ago(p.lastReadAt)) : "never"}</b></div>
       </div>
-      <div style="margin-top:12px">${beats(p.recentRuns, true)}
-        <div class="legend"><span>older</span><span>green ok · red failed · blue running · amber frame = repair</span><span>latest</span></div></div>
-      ${d.error ? `<div class="banner" style="margin:10px 0 0">Could not refresh details: ${esc(d.error)}</div>` : ""}
+      <div class="hist"><span class="label">Recent runs</span>${beats(p.recentRuns)}</div>
+      <div class="dacts">
+        <button class="sm" id="drefresh" ${p.activeRunId || S.busy.has(p.id) ? "disabled" : ""}>${p.activeRunId ? "Reading…" : "Refresh now"}</button>
+        <span class="sp"></span><span class="faint" style="font-size:12px" title="${(u.inputTokens || 0).toLocaleString()} in / ${(u.outputTokens || 0).toLocaleString()} out tokens">Model ${usd(u.costUsd)}</span>
+        <button class="sm quiet danger" id="ddelete" ${S.busy.has(p.id) ? "disabled" : ""}>Delete</button></div>
+      ${d.error ? `<div class="banner" style="margin:12px 0 0">Couldn’t refresh details: ${esc(d.error)}</div>` : ""}
     </div>
     <div class="tabs" role="tablist">
-      <button class="tab ${S.tab === "runs" ? "on" : ""}" role="tab" aria-selected="${S.tab === "runs"}" data-tab="runs">Runs${runs ? ` (${runs.length})` : ""}</button>
-      <button class="tab ${S.tab === "tenders" ? "on" : ""}" role="tab" aria-selected="${S.tab === "tenders"}" data-tab="tenders">Tenders${tenders ? ` (${tenders.length})` : ""}</button>
+      <button class="tab ${S.tab === "runs" ? "on" : ""}" role="tab" aria-selected="${S.tab === "runs"}" data-tab="runs">What happened${d.runs ? ` · ${d.runs.length}` : ""}</button>
+      <button class="tab ${S.tab === "tenders" ? "on" : ""}" role="tab" aria-selected="${S.tab === "tenders"}" data-tab="tenders">Tenders${d.tenders ? ` · ${d.tenders.length}` : ""}</button>
     </div>
-    <div class="tbody" role="tabpanel">${S.tab === "runs" ? runsHtml(runs, open) : tendersHtml(tenders)}</div>`;
-  box.scrollTop = keepScroll;
-  box.querySelector("[data-close]").onclick = () => select(null);
+    <div class="tbody" role="tabpanel">${S.tab === "runs" ? runsHtml(d.runs, openLogs) : tendersHtml(d.tenders)}</div>`;
+  box.scrollTop = scroll;
+  $("dclose").onclick = () => select(null);
+  $("drefresh").onclick = () => act("refresh", p.id);
+  $("ddelete").onclick = () => act("delete", p.id);
   box.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderDetail(); });
   box.querySelectorAll("[data-tst]").forEach(b => b.onclick = () => { S.tst = b.dataset.tst; renderDetail(); });
-  box.querySelectorAll(".dhead [data-act]").forEach(b => b.onclick = () => act(b.dataset.act, p.id));
+  const more = $("morruns"); if (more) more.onclick = () => { S.showAllRuns = true; renderDetail(); };
 }
-
-function runsHtml(runs, open) {
-  if (!runs) return `<div class="empty">Loading runs…</div>`;
-  if (!runs.length) return `<div class="empty">No runs yet.</div>`;
-  return `<ol class="tl">` + runs.slice(0, 40).map(r => {
-    const cls = r.result === "ok" ? "ok" : r.result === "failed" ? "failed" : "run";
-    const res = r.result === "ok" ? `<b class="ok">ok</b>` : r.result === "failed" ? `<b class="bad">failed</b>` : `<b style="color:var(--info)">running…</b>`;
-    const end = r.finishedAt ? `→ ${esc(clock(r.finishedAt))} · ${dur(r.startedAt, r.finishedAt)}` : "→ still running";
-    const cost = r.llmCalls ? `${r.llmCalls} model call${r.llmCalls > 1 ? "s" : ""} (${usd(r.costUsd)})` : "no model calls";
-    return `<li class="ev e-${cls}"><span class="pt"></span><details data-k="${esc(r.id)}" ${open.has(r.id) ? "open" : ""}>
-      <summary><span class="kind ${esc(r.kind)}">${esc(r.kind)}</span>${res}
-        <span class="when">${esc(abs(r.startedAt))} ${end}</span></summary>
-      <pre>${esc((r.steps || []).join("\n")) || "No steps logged."}</pre></details>
-      <div class="rr">${r.reason ? esc(r.reason) + " · " : ""}${cost}${r.tenderCount != null ? ` · ${r.tenderCount} tenders` : ""}</div></li>`;
-  }).join("") + `</ol>` + (runs.length > 40 ? `<div class="faint">… ${runs.length - 40} older runs via the API.</div>` : "");
+function runsHtml(runs, openLogs) {
+  if (!runs) return `<div class="empty">Loading…</div>`;
+  if (!runs.length) return `<div class="empty">Nothing has run yet.</div>`;
+  const shown = S.showAllRuns ? runs.slice(0, 60) : runs.slice(0, 8);
+  return shown.map(r => {
+    const res = r.result === "ok" ? "ok" : r.result === "failed" ? "failed" : "run";
+    const verb = r.kind === "repair" ? "Repair" : "Read";
+    const outcome = res === "ok" ? "succeeded" : res === "failed" ? "failed" : "running…";
+    const when = r.finishedAt ? `${ago(r.startedAt)} · ${dur(r.startedAt, r.finishedAt)}` : `started ${ago(r.startedAt)}`;
+    const note = res === "failed" || r.kind === "repair" ? (r.reason || "") : "";
+    const extra = [r.tenderCount != null && res === "ok" ? plural(r.tenderCount, "tender") : "", r.llmCalls ? `${plural(r.llmCalls, "model call")} · ${usd(r.costUsd)}` : ""].filter(Boolean).join(" · ");
+    return `<details class="run" data-k="${esc(r.id)}" ${openLogs.has(r.id) ? "open" : ""}>
+      <summary><span class="dot ${res === "ok" ? "d-serving" : res === "failed" ? "d-failed" : "d-integrating"}"></span>
+        <span class="what">${verb} <span>${outcome}</span></span><span class="when" title="${esc(abs(r.startedAt))}">${esc(when)}</span>
+        ${note || extra ? `<span class="note ${res === "failed" ? "failed" : ""}">${esc(note)}${note && extra ? " · " : ""}${esc(extra)}</span>` : ""}</summary>
+      <pre>${esc((r.steps || []).join("\n")) || "No log."}</pre></details>`;
+  }).join("") + (!S.showAllRuns && runs.length > 8 ? `<div style="padding-top:8px"><span class="more" id="morruns">Show ${runs.length - 8} earlier runs</span></div>` : "")
+    + `<div class="faint" style="font-size:12px;padding-top:8px">Click a run to see its step-by-step log.</div>`;
 }
-
 function tendersHtml(tenders) {
-  if (!tenders) return `<div class="empty">Loading tenders…</div>`;
-  if (!tenders.length) return `<div class="empty">No tenders held for this portal yet.</div>`;
+  if (!tenders) return `<div class="empty">Loading…</div>`;
+  if (!tenders.length) return `<div class="empty">No tenders yet.</div>`;
   const rank = {open: 0, withdrawn: 1, closed: 2}, cnt = {all: tenders.length};
   tenders.forEach(t => cnt[t.status] = (cnt[t.status] || 0) + 1);
   const list = tenders.filter(t => S.tst === "all" || t.status === S.tst).sort((a, b) =>
     (rank[a.status] ?? 3) - (rank[b.status] ?? 3) || String(a.submissionDeadline || "~").localeCompare(String(b.submissionDeadline || "~")));
-  const chips = ["all", "open", "withdrawn", "closed"].map(k =>
-    `<button class="chip sm ${S.tst === k ? "on" : ""}" data-tst="${k}" aria-pressed="${S.tst === k}">${k}<span class="c">${cnt[k] || 0}</span></button>`).join("");
+  const chips = ["all", "open", "withdrawn", "closed"].filter(k => k === "all" || cnt[k]).map(k =>
+    `<button class="chip sm ${S.tst === k ? "on" : ""}" data-tst="${k}" aria-pressed="${S.tst === k}">${k === "all" ? "All" : k[0].toUpperCase() + k.slice(1)}<span class="c">${cnt[k] || 0}</span></button>`).join("");
   return `<div class="tfil">${chips}</div>` + (list.length ? list.slice(0, 80).map(t => {
     const docs = t.documents || [];
     return `<div class="tender"><a class="t" href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title || "(no title shown)")}</a>
-      <div class="meta"><span class="st ${esc(t.status)}">${esc(t.status)}</span> <span class="pid">${esc(t.id)}</span> · ${esc(t.buyerName || "buyer not shown")}</div>
-      <div class="meta">Deadline <b style="color:var(--ink);font-weight:550">${esc(portalTime(t.submissionDeadline))}</b> · published ${esc(t.publicationDate || "not shown")}</div>
-      <div class="docs">${docs.length ? docs.map(f => `<a href="${esc(f.path)}" download title="sha256 ${esc(f.sha256)}">${esc(f.fileName)}</a><span class="faint">${size(f.sizeBytes)}</span>`).join("")
-        : `<span class="faint">no documents</span>`}</div></div>`;
-  }).join("") : `<div class="empty">No ${esc(S.tst)} tenders.</div>`)
-  + (list.length > 80 ? `<div class="faint">… ${list.length - 80} more via /portals/{id}/tenders.</div>` : "");
+      <div class="meta"><span class="st ${esc(t.status)}">${esc(t.status)}</span>${esc(t.buyerName || "Buyer not shown")} · due ${esc(portalTime(t.submissionDeadline))}</div>
+      <div class="docs">${docs.length ? docs.map(f => `<a href="${esc(f.path)}" download title="${esc(f.fileName)}">${esc(f.fileName.split("/").pop())}</a><span class="sz">${size(f.sizeBytes)}</span>`).join("")
+        : `<span class="faint">No documents</span>`}</div></div>`;
+  }).join("") : `<div class="empty">None.</div>`) + (list.length > 80 ? `<div class="faint">… ${list.length - 80} more in the API.</div>` : "");
 }
 
-/* ------------------------------------------------------------ actions */
-function setFilter(f) { S.filter = f; renderStrip(); S.lsig = ""; renderList(); }
+/* ---------------------------------------------------------------- actions */
+function setFilter(f) { S.filter = f; renderTop(); S.lsig = ""; renderList(); }
 function select(id) {
-  if (S.sel !== id) { S.sel = id; S.detail = null; S.dsig = ""; S.tst = "all"; }
+  if (S.sel !== id) { S.sel = id; S.detail = null; S.dsig = ""; S.tst = "all"; S.showAllRuns = false; }
   S.lsig = ""; renderList(); renderDetail();
   if (id) { loadDetail(); if (!wide()) $("detail").scrollIntoView({behavior: "smooth", block: "start"}); }
 }
 let flashT;
 function flash(text, kind) { const f = $("flash"); f.className = "flash " + kind; f.textContent = text;
-  clearTimeout(flashT); flashT = setTimeout(() => { f.textContent = ""; }, 9000); }
-
+  clearTimeout(flashT); flashT = setTimeout(() => { f.textContent = ""; }, 8000); }
 async function act(what, id) {
   const p = S.portals.find(x => x.id === id);
-  if (what === "delete" && !confirm(`Delete this portal?\n\n${p ? p.url : id}\n\nWatchtower stops reading it within a minute; its tenders and run history are removed.`)) return;
-  S.busy.add(id); renderList(); renderDetail();
+  if (what === "delete" && !confirm(`Stop watching this portal?\n\n${p ? p.url : id}\n\nIts tenders and history will be removed.`)) return;
+  S.busy.add(id); S.lsig = ""; renderList(); renderDetail();
   try {
     if (what === "delete") {
       await api(`/portals/${enc(id)}`, {method: "DELETE"});
       if (S.sel === id) select(null);
-      flash(`Deleted ${id}. Watchtower stops calling the portal within a minute.`, "ok");
+      flash("Portal deleted. Watchtower stops calling it within a minute.", "ok");
     } else {
-      const r = await api(`/portals/${enc(id)}/refresh`, {method: "POST"});
-      flash(`Read started for ${id} — run ${r.runId}.`, "info");
+      await api(`/portals/${enc(id)}/refresh`, {method: "POST"});
+      flash("Reading the portal again…", "info");
     }
   } catch (e) {
-    flash(e.status === 404 ? `Portal ${id} no longer exists.` : `${what} failed: ${e.message}`, "bad");
+    flash(e.status === 404 ? "That portal no longer exists." : `Couldn’t ${what}: ${e.message}`, "bad");
   } finally { S.busy.delete(id); await poll(); }
 }
-
 $("add").onsubmit = async e => {
   e.preventDefault();
   const url = $("newurl").value.trim();
-  if (!url) { flash("Enter a portal address.", "bad"); $("newurl").focus(); return; }
+  if (!url) { flash("Paste a portal address first.", "bad"); $("newurl").focus(); return; }
   const known = new Set(S.portals.map(p => p.id));
   $("addbtn").disabled = true;
   try {
     const r = await api("/portals", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({url})});
     await poll();
-    const p = S.portals.find(x => x.id === r.id);
-    flash(known.has(r.id) ? `Already monitored as ${r.id} (${p ? p.state : "unknown state"}) — showing the existing portal.`
-                          : `Accepted (201): ${r.id} is attaching in the background — state integrating.`,
-          known.has(r.id) ? "info" : "ok");
+    flash(known.has(r.id) ? "Already watched — showing the existing portal." : "Added. Watchtower is attaching it in the background.", known.has(r.id) ? "info" : "ok");
     $("newurl").value = "";
-    if (S.filter !== "all" && p && p.state !== S.filter) setFilter("all");
+    if (S.filter !== "all") setFilter("all");
     select(r.id);
   } catch (err) {
-    flash(err.status === 400 ? `Not accepted: ${err.message}.` : `Could not add the portal: ${err.message}.`, "bad");
+    flash(err.status === 400 ? `That doesn’t look like a portal address (${err.message}).` : `Couldn’t add it: ${err.message}`, "bad");
   } finally { $("addbtn").disabled = false; }
 };
-
 let qT;
 $("q").oninput = e => { clearTimeout(qT); qT = setTimeout(() => { S.q = e.target.value; renderList(); }, 120); };
 $("list").onclick = e => {
@@ -479,8 +487,11 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && S.sel) select(null);
   if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); $("q").focus(); }
 });
-const syncHeader = () => document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + 12 + "px");
-new ResizeObserver(syncHeader).observe($("hdr"));
+const paintTheme = () => { $("theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme"; };
+$("theme").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = t; try { localStorage.setItem("wt-theme", t); } catch (e) {} paintTheme(); };
+paintTheme();
+new ResizeObserver(() => document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + 12 + "px")).observe($("hdr"));
 
 poll();
 setInterval(poll, POLL_MS);

@@ -12,6 +12,18 @@
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
 
+## [0.7.0] — 2026-11-20 — calmer dashboard
+- Decluttered: one verdict in the header, state cards show only label + count, list grouped into
+  Needs attention / Attaching / Working with reasons only for problems, row actions on hover,
+  detail as callout + three facts + plain-language run history (logs on click), system info moved
+  to the footer, "No model key" as a single tag.
+
+## [0.6.0] — 2026-11-20 — Patterno look
+- Dashboard restyled in Patterno's visual language (taken from patterno.de): navy `#0a0a1a` with
+  indigo `#6366f1` accent, Inter + EB Garamond wordmark, pill header and buttons, uppercase micro
+  labels, light-weight numerals; light theme from Patterno's light tokens with a remembered toggle.
+  Layout and behaviour unchanged.
+
 ## [0.5.0] — 2026-11-20 — master–detail dashboard
 - Dashboard redesigned after Better Stack / Uptime Kuma / Vercel status and Temporal run views:
   header verdict + compact add form, 5-card state strip (filters), master list with per-portal

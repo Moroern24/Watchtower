@@ -51,5 +51,11 @@ Each entry: context → decision → consequences.
   page offers file links. Blocked = redirected to a login URL, or a wall page with nothing to
   follow. HTTP 403 is reported as "refused by server", not as a login.
 
+### ADR-013 Dashboard follows Patterno's visual language (2026-11-20)
+- **Decision:** colours, type and controls follow patterno.de (navy + indigo, Inter, EB Garamond
+  wordmark, pills); no Patterno logo is reproduced. Dark is the default, as on the brand site.
+- **Consequences:** the operator console feels like part of the Patterno product. Web fonts load
+  from Google Fonts; without internet the system fonts take over and nothing breaks.
+
 ### ADR-009 No LLM-written Python sandbox, no captcha handling (2026-11-20)
 - **Decision:** Skipped, following the brainstorm and the rules. Captchas and logins are detected and reported, never solved.
