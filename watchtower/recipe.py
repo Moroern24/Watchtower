@@ -110,7 +110,7 @@ def stable_hash(obj) -> str:
 
 class RawItem:
     __slots__ = ("fields", "scope", "is_json", "base_url", "list_hash", "detail_scope",
-                 "detail_url", "detail_is_json")
+                 "detail_url", "detail_is_json", "synthetic_id")
 
     def __init__(self, fields, scope, is_json, base_url):
         self.fields: dict = fields
@@ -121,6 +121,7 @@ class RawItem:
         self.detail_scope = None
         self.detail_url: str | None = None
         self.detail_is_json = False
+        self.synthetic_id = False
 
 
 def _with_param(url: str, param: str, value) -> str:
@@ -205,6 +206,7 @@ def _ensure_id(item: RawItem) -> str | None:
     f = item.fields
     tid = N.clean_text(f.get("id")) if f.get("id") is not None else None
     if not tid:
+        item.synthetic_id = True
         basis = f.get("url") or f.get("referenceNumber") or f.get("title")
         if not basis:
             return None
@@ -283,8 +285,15 @@ async def read_detail(recipe: Recipe, fetcher: Fetcher, item: RawItem) -> None:
                 for k, v in d.fields.items()}
     for k, v in vals.items():
         if v not in (None, "", []):
-            if k == "id" and item.fields.get("id"):
-                continue  # never change identity after the list
+            if k == "id":
+                # identity comes from the list; the detail page may only supply a real
+                # identifier where the list had none (instead of a URL hash)
+                if not item.synthetic_id:
+                    continue
+                v = N.clean_text(v)
+                if not v:
+                    continue
+                item.synthetic_id = False
             item.fields[k] = v
 
 

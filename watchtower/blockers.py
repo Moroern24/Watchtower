@@ -6,9 +6,16 @@ import re
 CAPTCHA_PATTERNS = [
     r"g-recaptcha", r"recaptcha/api", r"hcaptcha", r"h-captcha", r"cf-turnstile",
     r"challenges\.cloudflare\.com", r"friendlycaptcha", r"frc-captcha", r"captcha-image",
-    r"name=[\"']captcha", r"id=[\"']captcha", r"/captcha", r"cf-browser-verification",
-    r"cf_chl_opt", r"Just a moment\.\.\.",
+    r"name=[\"']captcha", r"id=[\"']captcha", r"cf-browser-verification",
+    r"cf_chl_opt", r"<title>Just a moment\.\.\.",
 ]
+LOGIN_URL = re.compile(r"/(login|signin|sign-in|sign_in|anmelden|anmeldung|einloggen|auth|sso|"
+                       r"connexion|identification|account/login|logon|zaloguj|logowanie)"
+                       r"(\b|[/?._-])", re.I)
+
+
+def is_login_url(url: str) -> bool:
+    return bool(LOGIN_URL.search(url or ""))
 LOGIN_WORDS = [
     "login", "log in", "sign in", "anmelden", "anmeldung", "einloggen", "connexion",
     "se connecter", "identifiez", "iniciar sesión", "acceso usuario", "inloggen", "aanmelden",
@@ -29,8 +36,7 @@ def detect_login(html: str, status: int = 200, url: str = "") -> bool:
     has_password = bool(re.search(r"<input[^>]+type=[\"']?password", low))
     if has_password:
         return True
-    if re.search(r"/(login|signin|sign-in|anmelden|auth|sso|connexion|account/login)\b",
-                 url.lower()) and len(low) < 60000:
+    if is_login_url(url) and len(low) < 60000:
         return any(w in low for w in LOGIN_WORDS)
     return False
 

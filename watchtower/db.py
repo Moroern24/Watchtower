@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS tenders (
   PRIMARY KEY (portal_id, tender_id)
 );
 CREATE TABLE IF NOT EXISTS files (
-  id TEXT PRIMARY KEY, sha256 TEXT UNIQUE, size INTEGER, mime TEXT
+  id TEXT PRIMARY KEY, sha256 TEXT UNIQUE, size INTEGER, mime TEXT, name TEXT
 );
 CREATE TABLE IF NOT EXISTS doc_cache (
   url TEXT PRIMARY KEY, fetched_at TEXT, entries TEXT
@@ -60,6 +60,9 @@ class DB:
         with self.lock:
             self.conn.execute("PRAGMA journal_mode=WAL")
             self.conn.executescript(SCHEMA)
+            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(files)")}
+            if "name" not in cols:  # migrate databases from v0.2
+                self.conn.execute("ALTER TABLE files ADD COLUMN name TEXT")
 
     # ---------- generic helpers ----------
     def q(self, sql: str, args: tuple = ()) -> list[sqlite3.Row]:
@@ -72,16 +75,12 @@ class DB:
 
     # ---------- portals ----------
     def create_portal(self, url: str, norm_url: str) -> tuple[str, bool]:
-        """Return (id, created). Same normalized URL -> same id (revives deleted)."""
+        """Return (id, created). Same normalized URL -> same id while the portal exists.
+        A deleted portal is gone for good: adding it again starts a fresh attach."""
         with self.lock:
-            row = self.conn.execute("SELECT id, deleted FROM portals WHERE norm_url=?",
+            row = self.conn.execute("SELECT id FROM portals WHERE norm_url=?",
                                     (norm_url,)).fetchone()
             if row:
-                if row["deleted"]:
-                    self.conn.execute(
-                        "UPDATE portals SET deleted=0, state='integrating', reason=? WHERE id=?",
-                        ("Re-added; attaching", row["id"]))
-                    return row["id"], True
                 return row["id"], False
             pid = new_id("p_")
             self.conn.execute(
@@ -103,19 +102,34 @@ class DB:
         vals = [json.dumps(v) if isinstance(v, (dict, list)) else v for v in fields.values()]
         self.x(f"UPDATE portals SET {cols} WHERE id=?", (*vals, pid))
 
-    def mark_deleted(self, pid: str) -> None:
-        self.x("UPDATE portals SET deleted=1 WHERE id=?", (pid,))
+    def purge_portal(self, pid: str) -> None:
+        """DELETE /portals/{id}: remove the portal with its recipes, runs and tenders.
+        Running tasks notice via is_deleted() (row missing) before their next request."""
+        with self.lock:
+            for table, col in (("tenders", "portal_id"), ("recipes", "portal_id"),
+                               ("runs", "portal_id"), ("portals", "id")):
+                self.conn.execute(f"DELETE FROM {table} WHERE {col}=?", (pid,))
 
     def is_deleted(self, pid: str) -> bool:
         rows = self.q("SELECT deleted FROM portals WHERE id=?", (pid,))
         return not rows or bool(rows[0]["deleted"])
+
+    def open_count(self, pid: str) -> int:
+        return self.q("SELECT COUNT(*) c FROM tenders WHERE portal_id=? AND "
+                      "json_extract(data, '$.status')='open'", (pid,))[0]["c"]
 
     def tender_count(self, pid: str) -> int:
         return self.q("SELECT COUNT(*) c FROM tenders WHERE portal_id=?", (pid,))[0]["c"]
 
     # ---------- recipes ----------
     def save_recipe(self, pid: str, recipe: dict, source: str) -> int:
+        """New version, unless it is identical to the current one (then keep that)."""
         with self.lock:
+            cur = self.get_recipe(pid)
+            if cur is not None and json.dumps(cur, sort_keys=True) == json.dumps(recipe,
+                                                                                 sort_keys=True):
+                return self.conn.execute("SELECT recipe_version v FROM portals WHERE id=?",
+                                         (pid,)).fetchone()["v"]
             row = self.conn.execute("SELECT MAX(version) v FROM recipes WHERE portal_id=?",
                                     (pid,)).fetchone()
             version = (row["v"] or 0) + 1
@@ -196,18 +210,15 @@ class DB:
                       (pid,))
         return [json.loads(r["data"]) for r in rows]
 
-    def delete_portal_data(self, pid: str) -> None:
-        with self.lock:
-            self.conn.execute("DELETE FROM tenders WHERE portal_id=?", (pid,))
-
     # ---------- files ----------
-    def add_file(self, sha: str, size: int, mime: str | None) -> str:
+    def add_file(self, sha: str, size: int, mime: str | None, name: str | None = None) -> str:
         with self.lock:
             row = self.conn.execute("SELECT id FROM files WHERE sha256=?", (sha,)).fetchone()
             if row:
                 return row["id"]
             fid = sha[:24]
-            self.conn.execute("INSERT INTO files VALUES(?,?,?,?)", (fid, sha, size, mime))
+            self.conn.execute("INSERT INTO files(id,sha256,size,mime,name) VALUES(?,?,?,?,?)",
+                              (fid, sha, size, mime, name))
             return fid
 
     def get_file(self, fid: str) -> dict | None:

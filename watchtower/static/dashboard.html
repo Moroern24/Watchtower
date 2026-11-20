@@ -60,7 +60,7 @@ pre.recipe{font:11px/1.45 var(--mono);background:var(--bg);padding:10px;border-r
   <form id="add"><input type="url" id="newurl" placeholder="https://portal.example/ausschreibungen — add a portal by its address" required>
     <button class="primary">Add portal</button></form>
   <div class="layout" id="layout">
-    <div><table><thead><tr><th>State</th><th>Portal</th><th>Tenders</th><th>Last success</th><th>Model cost</th></tr></thead>
+    <div><table><thead><tr><th>State</th><th>Portal</th><th>Open / held</th><th>Last success</th><th>Model cost</th></tr></thead>
       <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
     <div id="detail" hidden></div>
   </div>
@@ -87,11 +87,11 @@ async function refresh(){
 
 function renderTiles(ps, sys){
   const c = s => ps.filter(p=>p.state===s).length;
-  const t = ps.reduce((a,p)=>a+p.tenderCount,0);
+  const t = ps.reduce((a,p)=>a+p.tenderCount,0), o = ps.reduce((a,p)=>a+(p.openCount||0),0);
   document.getElementById("tiles").innerHTML = [
     ["Portals", ps.length, ""], ["Serving", c("serving"), "serving"], ["Healing", c("healing"), "healing"],
     ["Failed", c("failed"), "failed"], ["Integrating", c("integrating"), "integrating"],
-    ["Tenders held", t, ""], ["Model cost (all)", usd(sys.totalModelCostUsd), ""]
+    ["Open tenders", o, ""], ["Tenders held", t, ""], ["Model cost (all)", usd(sys.totalModelCostUsd), ""]
   ].map(([k,v,cls])=>`<div class="tile"><small>${k}</small><b class="${cls?cls.replace(/.*/,m=>({serving:"ok",failed:"bad"}[m]||"")):""}">${esc(v)}</b></div>`).join("");
 }
 
@@ -103,7 +103,7 @@ function renderRows(ps){
   tb.innerHTML = ps.map(p=>`<tr class="row ${p.id===selected?"sel":""}" data-id="${esc(p.id)}">
     <td><span class="badge ${esc(p.state)}">${esc(p.state)}</span>${p.activeRunId?'<div class="muted" style="font-size:11px;margin-top:4px">● run in progress</div>':""}</td>
     <td><div class="url">${esc(p.url)}</div><div class="reason">${esc(p.reason)}</div></td>
-    <td style="font-variant-numeric:tabular-nums">${p.tenderCount}</td>
+    <td style="font-variant-numeric:tabular-nums"><b>${p.openCount??0}</b> <span class="muted">/ ${p.tenderCount}</span></td>
     <td title="${esc(p.lastSuccessAt||"")}">${ago(p.lastSuccessAt)}</td>
     <td class="muted" style="white-space:nowrap">${usd(p.modelUsage.costUsd)}<br><small>${p.modelUsage.llmCalls} model calls</small></td></tr>`).join("");
   tb.querySelectorAll("tr.row").forEach(tr=>tr.onclick=()=>{selected=tr.dataset.id; renderRows(portals); renderDetail(selected);});
@@ -117,6 +117,8 @@ async function renderDetail(id){
   const openIds = new Set([...box.querySelectorAll("details[open]")].map(d=>d.dataset.k));
   box.hidden=false; lay.classList.add("open");
   const st = s => ({open:"ok",closed:"muted",withdrawn:"bad"}[s]||"");
+  const rank = {open:0, withdrawn:1, closed:2};
+  tenders.sort((a,b)=>(rank[a.status]??3)-(rank[b.status]??3) || (b.lastChangedAt||"").localeCompare(a.lastChangedAt||""));
   box.innerHTML = `<div class="panel">
     <button class="x" onclick="selected=null;renderDetail()">Close</button>
     <h2><span class="badge ${esc(p.state)}">${esc(p.state)}</span></h2>
@@ -138,7 +140,7 @@ async function renderDetail(id){
       ${r.llmCalls?`<span class="muted">· ${r.llmCalls} model calls · ${usd(r.costUsd)}</span>`:`<span class="muted">· no model calls</span>`}
       ${r.reason?`<div class="reason" style="flex-basis:100%">${esc(r.reason)}</div>`:""}</summary>
       <pre>${esc((r.steps||[]).join("\n"))}</pre></details>`).join("") || '<div class="muted">No runs yet.</div>'}
-    <h3>Tenders (${tenders.length})</h3>
+    <h3>Tenders (${tenders.filter(t=>t.status==="open").length} open of ${tenders.length})</h3>
     ${tenders.slice(0,25).map(t=>`<div class="tender"><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a>
       <div class="muted" style="font-size:12px">${esc(t.id)} · ${esc(t.buyerName||"buyer n/a")} · deadline ${esc(t.submissionDeadline||"n/a")} · <span class="${st(t.status)}">${esc(t.status)}</span></div>
       <div class="docs">${(t.documents||[]).map(d=>`<a href="${esc(d.path)}" target="_blank">${esc(d.fileName)}</a>`).join(" · ")||"no documents"}</div></div>`).join("") || '<div class="muted">No tenders held.</div>'}

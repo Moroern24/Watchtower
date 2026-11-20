@@ -29,9 +29,10 @@ DL_WORDS = re.compile(r"download|herunterladen|télécharger|telecharger|descarg
 class DocResult:
     def __init__(self):
         self.entries: list[dict] = []
-        self.blocked: str | None = None   # 'login' | 'captcha'
+        self.blocked: str | None = None   # 'login' | 'captcha' | 'forbidden'
         self.errors: list[str] = []
         self.skipped_large = 0
+        self.zip_truncated = 0
         self.attempted = 0
 
 
@@ -58,18 +59,22 @@ def _filename(info: dict, url: str, hint: str | None) -> str:
     return base or "document"
 
 
-def _store(db: DB, src: Path, sha: str, size: int, mime: str | None) -> str:
+def _store(db: DB, src: Path, sha: str, size: int, mime: str | None,
+           name: str | None = None) -> str:
     settings.files_dir.mkdir(parents=True, exist_ok=True)
     dest = settings.files_dir / sha
     if dest.exists():
         src.unlink(missing_ok=True)
     else:
         shutil.move(str(src), dest)
-    return db.add_file(sha, size, mime)
+    return db.add_file(sha, size, mime, name)
 
 
-def _unzip(db: DB, zpath: Path, depth: int = 0) -> list[dict]:
+def _unzip(db: DB, zpath: Path, depth: int = 0) -> tuple[list[dict], int, bool]:
+    """Returns (entries, files skipped for size, truncated by the archive size guard).
+    fileName keeps the folder path inside the archive (lots/forms stay distinguishable)."""
     out: list[dict] = []
+    skipped, truncated = 0, False
     tmp_dir = settings.data_dir / "tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     total = 0
@@ -78,18 +83,22 @@ def _unzip(db: DB, zpath: Path, depth: int = 0) -> list[dict]:
             if info.is_dir() or info.file_size == 0:
                 continue
             name = info.filename
-            if info.flag_bits & 0x800 == 0:  # not utf-8 flagged: cp437 → try cp850/utf-8
+            if info.flag_bits & 0x800 == 0:  # not utf-8 flagged: cp437 → try utf-8
                 try:
                     name = name.encode("cp437").decode("utf-8")
                 except (UnicodeEncodeError, UnicodeDecodeError):
                     pass
-            base = os.path.basename(name.replace("\\", "/"))
+            name = name.replace("\\", "/")
+            base = os.path.basename(name)
             if not base or base.startswith(".") or "__MACOSX" in name:
                 continue
+            rel = "/".join(p for p in name.split("/") if p not in ("", ".", ".."))
             if info.file_size > settings.max_file_bytes:
+                skipped += 1
                 continue
             total += info.file_size
             if total > 4 * settings.max_file_bytes:  # zip-bomb guard
+                truncated = True
                 break
             h = hashlib.sha256()
             tmp = tmp_dir / f"z_{uuid.uuid4().hex}"
@@ -106,16 +115,21 @@ def _unzip(db: DB, zpath: Path, depth: int = 0) -> list[dict]:
                     dst.write(chunk)
             if size > settings.max_file_bytes:
                 tmp.unlink(missing_ok=True)
+                skipped += 1
                 continue
             if depth == 0 and base.lower().endswith(".zip") and zipfile.is_zipfile(tmp):
-                out.extend(_unzip(db, tmp, depth + 1))
+                inner, s2, t2 = _unzip(db, tmp, depth + 1)
+                prefix = rel[:-4]
+                out.extend({**e, "fileName": f"{prefix}/{e['fileName']}"} for e in inner)
+                skipped += s2
+                truncated = truncated or t2
                 tmp.unlink(missing_ok=True)
                 continue
             sha = h.hexdigest()
-            fid = _store(db, tmp, sha, size, None)
-            out.append({"fileName": base, "sizeBytes": size, "sha256": sha,
+            fid = _store(db, tmp, sha, size, None, rel)
+            out.append({"fileName": rel, "sizeBytes": size, "sha256": sha,
                         "path": f"/files/{fid}"})
-    return out
+    return out, skipped, truncated
 
 
 def follow_links(html: str, base_url: str, follow_selector: str | None) -> list[tuple[str, str]]:
@@ -174,8 +188,10 @@ async def fetch_documents(db: DB, fetcher: Fetcher, links: list[tuple[str, str]]
             res.skipped_large += 1
             continue
         if info["status"] >= 400 or not info["path"]:
-            if info["status"] in (401, 403):
+            if info["status"] in (401, 407):
                 res.blocked = res.blocked or "login"
+            elif info["status"] == 403:
+                res.blocked = res.blocked or "forbidden"
             res.errors.append(f"HTTP {info['status']} for {url}")
             continue
         path: Path = info["path"]
@@ -185,25 +201,37 @@ async def fetch_documents(db: DB, fetcher: Fetcher, links: list[tuple[str, str]]
         if is_html:
             html = decode_bytes(path.read_bytes(), ctype)
             path.unlink(missing_ok=True)
+            # A login box or captcha widget in the page chrome does not block anything as long
+            # as the page still offers file links. A wall is: being sent to a login URL, or a
+            # login/captcha page with nothing to follow.
             block = blockers.classify_block(html, info["status"], info["final_url"])
-            if block in ("login", "captcha"):
-                res.blocked = res.blocked or block
+            redirected_to_login = block == "login" and blockers.is_login_url(info["final_url"])
+            if redirected_to_login:
+                res.blocked = res.blocked or "login"
                 continue
-            if hop < 2:
-                for u, t in follow_links(html, info["final_url"], follow_selector):
-                    queue.append((u, t, hop + 1))
+            nxt = follow_links(html, info["final_url"], follow_selector) if hop < 2 else []
+            if nxt:
+                queue.extend((u, t, hop + 1) for u, t in nxt)
+                continue
+            if block in ("login", "captcha", "forbidden"):
+                res.blocked = res.blocked or block
+            else:
+                res.errors.append(f"{url} returned an HTML page without document links")
             continue
         entries: list[dict]
         if zipfile.is_zipfile(path):
             try:
-                entries = _unzip(db, path)
+                entries, skipped, truncated = _unzip(db, path)
+                res.skipped_large += skipped
+                res.zip_truncated += int(truncated)
             except (zipfile.BadZipFile, OSError, RuntimeError) as e:
                 res.errors.append(f"Bad zip {url}: {e}")
                 entries = []
             path.unlink(missing_ok=True)
         else:
-            fid = _store(db, path, info["sha256"], info["size"], ctype or None)
-            entries = [{"fileName": _filename(info, url, name), "sizeBytes": info["size"],
+            fname = _filename(info, url, name)
+            fid = _store(db, path, info["sha256"], info["size"], ctype or None, fname)
+            entries = [{"fileName": fname, "sizeBytes": info["size"],
                         "sha256": info["sha256"], "path": f"/files/{fid}"}]
         db.doc_cache_put(url, entries)
         for e in entries:

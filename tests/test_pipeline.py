@@ -45,7 +45,8 @@ def test_ssr_full_read(mock_base, db):
                                        "countryCode": "DE"}
     names = sorted(d["fileName"] for d in t["documents"])
     # ZIP is unpacked: inner files instead of the zip
-    assert names == ["Angebotsschreiben.docx", "Bekanntmachung.pdf", "Leistungsverzeichnis.pdf"]
+    assert names == ["Bekanntmachung.pdf", "Formblaetter/Angebotsschreiben.docx",
+                     "Leistungsverzeichnis.pdf"]
     for d in t["documents"]:
         assert (settings.files_dir / d["sha256"]).exists()
     ok, problems, _ = validate.check(res.tenders, None, 0, True)
@@ -105,7 +106,7 @@ def test_multistep_documents(mock_base, db):
     t = res.tenders[0]
     assert sorted(d["fileName"] for d in t["documents"]) == ["CCAP.pdf", "RC.pdf"], steps
     assert t["submissionDeadline"].endswith(("+01:00", "+02:00"))
-    assert t["procedureType"] == "open"
+    assert t["procedureType"] == "other"  # "procédure adaptée" (MAPA) is not the EU open one
 
 
 def test_captcha_page_docs_ok(mock_base, db):
@@ -113,9 +114,61 @@ def test_captcha_page_docs_ok(mock_base, db):
     assert len(res.tenders) == 6
     assert all(t["documents"] for t in res.tenders)
     assert not res.doc_blocked
+    # M2: the list has no identifier, the detail page has "Kennung" -> real portal ids
+    assert sorted(t["id"] for t in res.tenders)[0] == "CP-2026-1000"
+    assert not any(t.get("_syntheticId") for t in res.tenders)
+    commit(db, "p1", recipe, res)
+    recipe, res2, steps = run(_read(db, R.simple(mock_base, "captcha"),
+                                    previous=db.get_tenders("p1")))
+    assert {t["id"] for t in res2.tenders} == {t["id"] for t in res.tenders}
+    assert any("reused" in s for s in steps)
 
 
 def test_login_docs_blocked(mock_base, db):
     recipe, res, _ = run(_read(db, R.simple(mock_base, "login")))
     assert len(res.tenders) == 6
     assert res.doc_blocked.get("login") == 6
+
+
+def test_header_login_box_does_not_block_public_docs(mock_base, db):
+    """C2: a download page with a login form + captcha widget in its chrome still has files."""
+    from watchtower.documents import fetch_documents
+
+    async def go():
+        async with Fetcher() as f:
+            return await fetch_documents(db, f, [(f"{mock_base}/captcha/docpage/1001", "")])
+    res = run(go())
+    assert res.blocked is None
+    assert [e["fileName"] for e in res.entries] == ["Leistungsbeschreibung.pdf"]
+
+
+def test_redirect_to_login_is_blocked_and_403_is_not_login(mock_base, db):
+    from watchtower.documents import fetch_documents
+
+    async def go(url):
+        async with Fetcher() as f:
+            return await fetch_documents(db, f, [(url, "")], use_cache=False)
+    assert run(go(f"{mock_base}/login/doc/1.pdf")).blocked == "login"
+    assert run(go(f"{mock_base}/forbidden/doc/1.pdf")).blocked == "forbidden"   # M6
+
+
+def test_zip_limits_are_reported(tmp_path, db, monkeypatch):
+    """M5: oversized members and the archive size guard are counted, not silent."""
+    import zipfile as zf
+    from watchtower import documents
+    monkeypatch.setattr(settings, "max_file_bytes", 1000)
+    z = tmp_path / "a.zip"
+    with zf.ZipFile(z, "w") as w:
+        w.writestr("lot1/LV.pdf", b"x" * 100)
+        w.writestr("lot2/LV.pdf", b"y" * 100)
+        w.writestr("big.bin", b"z" * 5000)
+    entries, skipped, truncated = documents._unzip(db, z)
+    assert sorted(e["fileName"] for e in entries) == ["lot1/LV.pdf", "lot2/LV.pdf"]  # m6
+    assert skipped == 1 and truncated is False
+
+
+def test_blocker_heuristics():
+    from watchtower.blockers import classify_block, is_login_url
+    assert is_login_url("https://x.de/login?next=/a") and not is_login_url("https://x.de/blog")
+    page = '<footer><a href="/captcha-policy">Captcha policy</a></footer>'
+    assert classify_block(page) is None  # a word in a link is not a captcha

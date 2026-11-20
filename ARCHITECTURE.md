@@ -92,7 +92,7 @@ A "snapshot" is the set of tender rows. A read writes them only after validation
   - `regex`: the first capture group wins.
   - `all: true`: returns a list, used for `cpvCodes`.
 - The value of `url` and of every link is resolved against the page URL.
-- `id` must come from the portal: a reference number, a URL parameter or an API id. Executor fallback: the stable hash of `url`.
+- `id` must come from the portal: a reference number, a URL parameter or an API id. If the list has none, a detail-page `id` spec supplies it. Last fallback: the stable hash of `url`, reported as a warning.
 
 **Merge:** detail fields override list fields when they are non-null.
 
@@ -140,7 +140,13 @@ A read is **valid** when all of these hold:
 
 **Hard blocks:**
 - A captcha or login wall where tenders were expected leads to `failed`, with `reason`.
-- Documents that lead to a login wall for every tender lead to `failed` ("documents require login").
+- Documents that lead to a wall for every tender lead to `failed`. A wall is a redirect to a
+  login URL, or a login/captcha page without file links; a login box in a page header is not.
+  HTTP 403 is reported as "refused by the server".
+
+**After a repair** the same drift checks apply. A count drop is never accepted: if the model
+returns the unchanged recipe the portal is `failed` ("not auto-closing tenders"). A lost
+optional field is accepted and reported as a warning (ADR-010).
 
 ## 8. Learning and repair (LLM)
 

@@ -42,6 +42,8 @@ def ssr_v2(base):
                             "submissionDeadline": {"css": "div.dates",
                                                    "regex": "Frist: ([\\d.]+, [\\d:]+)"}}},
         "detail": {"fields": {"referenceNumber": {"label": "Aktenzeichen"},
+                              "postalCode": {"label": "Ort"},
+                              "city": {"label": "Ort", "regex": "\d{5}\s+(.+)"},
                               "description": {"css": "div.text"},
                               "procedureType": {"label": "Verfahren"},
                               "contractNature": {"label": "Leistungsart"},

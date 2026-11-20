@@ -6,6 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -45,7 +46,7 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         e = {"id": p["id"], "url": p["url"], "state": p["state"], "reason": p["reason"],
              "tenderCount": D().tender_count(p["id"]), "lastSuccessAt": p["last_success_at"]}
         if full:
-            e.update(lastReadAt=p["last_read_at"], createdAt=p["created_at"],
+            e.update(openCount=D().open_count(p["id"]), lastReadAt=p["last_read_at"], createdAt=p["created_at"],
                      recipeVersion=p["recipe_version"], activeRunId=O().active_run(p["id"]),
                      modelUsage=D().portal_cost(p["id"]))
         return e
@@ -65,6 +66,16 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         url = body.get("url") if isinstance(body, dict) else None
         if not isinstance(url, str) or not url.strip() or " " in url.strip():
             return JSONResponse({"error": "Body must be {\"url\": \"…\"}"}, status_code=400)
+        parts = urlsplit(url.strip() if "://" in url else "https://" + url.strip())
+        try:
+            host = parts.hostname or ""
+            _ = parts.port  # raises ValueError for garbage like "javascript:alert(1)"
+            host_ok = "." in host or host == "localhost" or ":" in host  # name, IPv4/IPv6
+        except ValueError:
+            host_ok = False
+        if parts.scheme not in ("http", "https") or not host_ok:
+            return JSONResponse({"error": "url must be an http(s) address with a host"},
+                                status_code=400)
         pid, _ = O().add_portal(url)
         return {"id": pid}
 
@@ -138,8 +149,12 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         path = settings.files_dir / f["sha256"] if f else None
         if not f or not path.exists():
             raise HTTPException(404, "Unknown file")
+        name = (f.get("name") or fid).rsplit("/", 1)[-1]
+        ascii_name = name.encode("ascii", "replace").decode().replace('"', "_").replace("?", "_")
         return FileResponse(path, media_type=f["mime"] or "application/octet-stream",
-                            headers={"X-Content-Type-Options": "nosniff"})
+                            headers={"X-Content-Type-Options": "nosniff",
+                                     "Content-Disposition": f'attachment; filename="{ascii_name}"; '
+                                                            f"filename*=UTF-8''{quote(name)}"})
 
     @app.get("/system")
     def system():

@@ -349,6 +349,21 @@ def captcha_doc(name: str):
     return Response(pdf_bytes("cp" + name), media_type="application/pdf")
 
 
+@app.get("/captcha/docpage/{num}")
+def captcha_docpage(num: int):
+    """Public download page whose header has a login box and a turnstile widget (trap C2)."""
+    head = ('<form class="login" action="/login/signin" method="post"><input name="u">'
+            '<input type="password" name="p"><button>Login</button></form>'
+            '<div class="cf-turnstile" data-sitekey="x"></div>')
+    return page_resp("Unterlagen", f'{head}<h1>Vergabeunterlagen</h1>'
+                     f'<a href="/captcha/doc/{num}.pdf">Leistungsbeschreibung.pdf</a>')
+
+
+@app.get("/forbidden/doc/{name}")
+def forbidden_doc(name: str):
+    return Response("Access denied by firewall", status_code=403)
+
+
 @app.get("/login/tenders")
 def login_list():
     return _simple_list("LG", "login")

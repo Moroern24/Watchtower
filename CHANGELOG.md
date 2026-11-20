@@ -11,3 +11,28 @@
   Playwright XHR capture for JS apps, mock portals, Dockerfile, README.
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
+
+## [0.3.0] — 2026-11-20 — fixes from operator pass #1
+- C1: a repaired recipe is checked against the last good read like any regular read. A sharp
+  drop in tenders is never accepted by a repair; if the model returns the unchanged recipe the
+  portal goes `failed` ("not auto-closing tenders") and keeps its open tenders.
+  Also fixed: the model-repair cooldown never applied (state was already `healing`).
+- C2: a login box or captcha widget on a download page no longer blocks documents; only a
+  redirect to a login URL, or a login/captcha page with no file links, counts as a wall.
+  Captcha detection no longer fires on a bare "/captcha" substring.
+- C3: DELETE purges the portal with its recipes, runs and tenders; adding the URL again
+  attaches from scratch with a new id.
+- M1: optional fields (place of performance, procedure, nature, …) are part of the drift
+  profile; after a repair a lost optional field is reported as a warning in the reason.
+- M2: when the list has no identifier, the detail page's identifier is used; URL-hash ids
+  remain only as a fallback and are reported as a warning.
+- M4: "procédure adaptée" (MAPA) and similar national procedures map to `other`, not `open`.
+- M5/M6: ZIP members over the limit and the archive size guard are counted and reported;
+  HTTP 403 on documents is reported as "refused by the server", not as a login.
+- M7: POST /portals answers 400 for anything that is not an http(s) URL with a host.
+- M8: prompt-cache writes are costed at 1.25× input.
+- Minor: file downloads carry `Content-Disposition` with the real name; ZIP entries keep their
+  folder path; identical recipes are not saved as new versions; dashboard shows open/held and
+  lists open tenders first; run log reports detail/document progress and skipped steps; read
+  interval counts from the end of a read.
+- Tests: 34 passing.

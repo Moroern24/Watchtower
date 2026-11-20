@@ -223,6 +223,9 @@ def procedure_type(raw) -> str | None:
     s = clean_text(raw)
     if not s:
         return None
+    if re.search(r"adapt|mapa|unterschwell|vereinfacht|simplificad|menor|"
+                 r"onderhands|zapytanie ofertowe", s.lower()):
+        return "other"
     val = _keyword_enum(s, _PROCEDURE, None)
     if val:
         return val

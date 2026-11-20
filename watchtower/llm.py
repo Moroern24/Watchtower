@@ -60,12 +60,13 @@ class LLM:
 
     def _account(self, resp) -> None:
         u = resp.usage
-        inp = (u.input_tokens or 0) + (getattr(u, "cache_creation_input_tokens", 0) or 0)
+        inp = u.input_tokens or 0
+        written = getattr(u, "cache_creation_input_tokens", 0) or 0
         cached = getattr(u, "cache_read_input_tokens", 0) or 0
         self.usage.calls += 1
-        self.usage.input_tokens += inp + cached
+        self.usage.input_tokens += inp + written + cached
         self.usage.output_tokens += u.output_tokens or 0
-        self.usage.cost_usd += (inp * settings.price_in + cached * settings.price_in * 0.1
+        self.usage.cost_usd += ((inp + written * 1.25 + cached * 0.1) * settings.price_in
                                 + (u.output_tokens or 0) * settings.price_out) / 1e6
 
     async def _create(self, **kw):

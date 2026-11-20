@@ -34,5 +34,22 @@ Each entry: context → decision → consequences.
 - **Decision:** The default is `claude-opus-5-5`, overridable with `WATCHTOWER_MODEL`. A recipe error costs far more (wrong data, re-repairs) than the tokens saved by using a smaller model.
 - **Consequences:** Operators can switch to a cheaper model with the env var.
 
+### ADR-010 A repair may never accept fewer tenders on its own (2026-11-20)
+- **Context:** operator pass #1 found that a repair re-validated with basic checks only, so a
+  real drop (or broken pagination) closed open tenders under a green state.
+- **Decision:** repaired recipes face the same drift checks as regular reads. A count drop is
+  always a failure; if the model returns the unchanged recipe, the portal is `failed` with
+  "not auto-closing tenders" and keeps serving its last correct tenders. Losing an optional
+  field after a repair is accepted (missing beats wrong) but reported in the reason.
+
+### ADR-011 DELETE purges; re-adding attaches from scratch (2026-11-20)
+- **Decision:** deleting a portal removes its recipes, runs and tenders. Adding the same URL
+  later gives a new id and a fresh attach — the operator's way to force a re-learn.
+
+### ADR-012 Walls are judged by outcome, not by page chrome (2026-11-20)
+- **Decision:** a login form or captcha widget on a page does not block documents while the
+  page offers file links. Blocked = redirected to a login URL, or a wall page with nothing to
+  follow. HTTP 403 is reported as "refused by server", not as a login.
+
 ### ADR-009 No LLM-written Python sandbox, no captcha handling (2026-11-20)
 - **Decision:** Skipped, following the brainstorm and the rules. Captchas and logins are detected and reported, never solved.

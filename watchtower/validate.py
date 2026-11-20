@@ -7,7 +7,8 @@ from datetime import datetime
 from .normalize import is_iso_date, looks_like_date_or_number
 
 PROFILE_FIELDS = ["title", "url", "buyerName", "publicationDate", "submissionDeadline",
-                  "referenceNumber", "description", "cpvCodes", "documents"]
+                  "referenceNumber", "description", "procedureType", "contractNature",
+                  "cpvCodes", "placeOfPerformance", "documents"]
 
 
 def profile(tenders: list[dict]) -> dict:
@@ -22,8 +23,10 @@ def profile(tenders: list[dict]) -> dict:
 
 
 def check(tenders: list[dict], good_profile: dict | None, good_count: int,
-          first_read: bool) -> tuple[bool, list[str], list[str]]:
-    """Return (ok, problems, warnings)."""
+          first_read: bool, field_drift_is_warning: bool = False
+          ) -> tuple[bool, list[str], list[str]]:
+    """Return (ok, problems, warnings). field_drift_is_warning (used after a repair): a field
+    that stopped being filled is reported but does not block; count drops always block."""
     problems: list[str] = []
     warnings: list[str] = []
     n = len(tenders)
@@ -65,12 +68,17 @@ def check(tenders: list[dict], good_profile: dict | None, good_count: int,
             warnings.append("No submission deadlines found")
         if sum(1 for t in tenders if t.get("buyerName")) == 0:
             warnings.append("No buyer names found")
+    synthetic = sum(1 for t in tenders if t.get("_syntheticId"))
+    if synthetic:
+        warnings.append(f"{synthetic} tenders have no portal identifier (id derived from URL)")
     if good_profile and not first_read:
         cur = profile(tenders)
         for f in PROFILE_FIELDS:
             before, now = good_profile.get(f, 0), cur.get(f, 0)
             if before >= 0.5 and now < before - 0.35:
-                problems.append(f"Field '{f}' fill rate dropped {before:.0%} → {now:.0%}")
+                msg = f"Field '{f}' fill rate dropped {before:.0%} → {now:.0%}"
+                core = f in ("title", "url", "buyerName", "submissionDeadline", "documents")
+                (warnings if field_drift_is_warning and not core else problems).append(msg)
         if good_count >= 5 and n < good_count * 0.4:
             problems.append(f"Tender count dropped sharply: {good_count} → {n}")
         lb, la = good_profile.get("avgTitleLen", 0), cur["avgTitleLen"]

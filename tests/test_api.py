@@ -35,6 +35,8 @@ class FakeLearner:
     async def repair(self, url, old, problems, ids):
         CALLS["repair"] += 1
         base = url.split("/", 3)[0] + "//" + url.split("/", 3)[2]
+        if any("count dropped" in p.lower() for p in problems):
+            return old  # the honest model answer: nothing about the reading changed
         return R.ssr_v2(base)
 
 
@@ -151,3 +153,55 @@ def test_normalize_url():
     assert normalize_url("HTTPS://Example.com:443/a/") == "https://example.com/a"
     assert normalize_url("example.com") == "https://example.com/"
     assert normalize_url("https://x.de/app#/list") == "https://x.de/app#/list"
+
+
+def test_count_drop_does_not_auto_close(client, mock_base):
+    """C1: a repair that returns the same recipe must not accept a sharp drop and close
+    tenders; the portal is failed with an honest reason and keeps its open tenders."""
+    pid = client.post("/portals", json={"url": f"{mock_base}/ssr/tenders?c1=1"}).json()["id"]
+    wait_state(client, pid, {"serving"})
+    for i in range(1000, 1008):
+        httpx.get(mock_base + "/control/hide", params={"id": f"VG-2026-{i}"})
+    client.post(f"/portals/{pid}/refresh")
+    p = wait_state(client, pid, {"serving", "failed"}, timeout=60)
+    assert p["state"] == "failed", p
+    assert "not auto-closing" in p["reason"].lower()
+    statuses = [t["status"] for t in client.get(f"/portals/{pid}/tenders").json()]
+    assert statuses.count("open") == 11 and "closed" not in statuses
+    recipes = client.get(f"/portals/{pid}/recipes").json()
+    assert len(recipes) == 1  # m5: no duplicate recipe versions
+
+
+def test_readd_after_delete_is_fresh(client, mock_base):
+    """C3: delete removes everything; adding the URL again attaches from scratch."""
+    url = f"{mock_base}/spa/?c3=1"
+    pid = client.post("/portals", json={"url": url}).json()["id"]
+    wait_state(client, pid, {"serving"})
+    learns = CALLS["learn"]
+    assert client.delete(f"/portals/{pid}").status_code == 204
+    pid2 = client.post("/portals", json={"url": url}).json()["id"]
+    assert pid2 != pid
+    p = wait_state(client, pid2, {"serving"})
+    assert CALLS["learn"] == learns + 1
+    runs = client.get(f"/portals/{pid2}/runs").json()
+    assert len(runs) == 1 and runs[0]["kind"] == "read"
+    assert client.get(f"/portals/{pid}/runs").status_code == 404
+
+
+def test_bad_urls_rejected(client):
+    """M7"""
+    for bad in ["javascript:alert(1)", "ftp://x.example/a", "http://", "not a url", ""]:
+        assert client.post("/portals", json={"url": bad}).status_code == 400, bad
+    assert client.post("/portals", json={}).status_code == 400
+
+
+def test_file_download_has_name(client, mock_base):
+    """m3"""
+    pid = client.post("/portals", json={"url": f"{mock_base}/ssr/tenders?m3=1"}).json()["id"]
+    wait_state(client, pid, {"serving"})
+    doc = client.get(f"/portals/{pid}/tenders").json()[0]["documents"][0]
+    r = client.get(doc["path"])
+    assert "attachment" in r.headers["content-disposition"]
+    assert doc["fileName"].rsplit("/", 1)[-1] in r.headers["content-disposition"]
+    full = client.get(f"/portals/{pid}?full=true").json()
+    assert full["openCount"] == 11

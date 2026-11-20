@@ -109,11 +109,10 @@ class Orchestrator:
         return self._launch(pid, "read")
 
     def delete(self, pid: str) -> None:
-        self.db.mark_deleted(pid)
         if pid in self.active:
             self.active[pid][1].cancel()
             self.active.pop(pid, None)
-        self.db.delete_portal_data(pid)
+        self.db.purge_portal(pid)
 
     def active_run(self, pid: str) -> str | None:
         return self.active[pid][0] if pid in self.active else None
@@ -202,6 +201,7 @@ class Orchestrator:
                 if e.kind == "cancelled":
                     raise Cancelled() from e
                 ok, problems, n = False, [f"{e.kind}: {e.message}"], None
+        self.db.update_portal(pid, last_read_at=now_iso())  # interval counts from the end
         if ok:
             self.db.finish_run(ctx.rid, "ok", None, ctx.steps, ctx.usage.as_dict(), n)
             return None
@@ -224,7 +224,10 @@ class Orchestrator:
         return None
 
     async def _read_with(self, ctx: RunCtx, fetcher: Fetcher, recipe, first: bool,
-                         commit_if_ok: bool = True, basic_checks: bool = False):
+                         commit_if_ok: bool = True, repair_mode: bool = False):
+        """Execute + validate (+ commit). repair_mode: still compared with the last good read
+        (count drops are failures, never auto-closing tenders), but a lost optional field is
+        reported as a warning instead of blocking the repair."""
         pid = ctx.pid
         portal = self.db.get_portal(pid) or {}
         good_profile = json.loads(portal.get("good_profile") or "null")
@@ -234,13 +237,17 @@ class Orchestrator:
                             previous=self.db.get_tenders(pid))
         tenders = res.tenders
         ok, problems, warnings = validate.check(
-            tenders, None if basic_checks else good_profile, good_count, first or basic_checks)
+            tenders, None if first else good_profile, good_count, first,
+            field_drift_is_warning=repair_mode)
         ctx.log(f"Read {len(tenders)} tenders; checks: "
-                + ("passed" if ok else "; ".join(problems)))
+                + ("passed" if ok else "; ".join(problems))
+                + (f" (warnings: {'; '.join(warnings)})" if warnings else ""))
         if not ok:
             return False, problems, len(tenders)
         if not commit_if_ok:
             return True, [], len(tenders)
+        if self.db.is_deleted(pid):
+            raise Cancelled()
         stats = commit(self.db, pid, recipe, res)
         prof = validate.profile(tenders)
         n_open = sum(1 for t in self.db.tender_payloads(pid) if t.get("status") == "open")
@@ -248,8 +255,11 @@ class Orchestrator:
         ctx.log(f"Committed: {stats}")
         if res.doc_tenders_with_links and res.doc_blocked and res.doc_tenders_with_files == 0:
             kind = next(iter(res.doc_blocked))
-            reason = (f"Tender list readable ({len(tenders)} tenders) but the documents require "
-                      f"a {kind}; cannot deliver documents without one")
+            what = {"login": "require a login", "captcha": "require solving a captcha",
+                    "forbidden": "are refused by the server (HTTP 403 — firewall, rate limit "
+                                 "or access restriction)"}.get(kind, f"are blocked ({kind})")
+            reason = (f"Tender list readable ({len(tenders)} tenders, {n_open} open) but the "
+                      f"documents {what}; cannot deliver documents")
             self.db.update_portal(pid, state="failed", reason=reason,
                                   hints=json.dumps({"docsBlocked": kind}),
                                   good_count=len(tenders), good_profile=prof)
@@ -258,6 +268,8 @@ class Orchestrator:
         extra = ""
         if res.skipped_large:
             extra += f"; {res.skipped_large} files over 250 MB skipped"
+        if res.zip_truncated:
+            extra += f"; {res.zip_truncated} ZIP archives only partly unpacked (size guard)"
         if warnings:
             extra += "; note: " + ", ".join(warnings)
         self.db.update_portal(pid, state="serving", hints=None,
@@ -289,35 +301,52 @@ class Orchestrator:
                     self.db.set_recipe_version(pid, v)
                     self.db.save_recipe(pid, old, "rollback")
                     return self._repaired(ctx, f"Recovered with earlier recipe v{v}")
+            if current_v <= 1:
+                ctx.log("Step 2: no earlier recipe versions to try")
             # 3. LLM repair
             if not self.llm_available():
                 return self._repair_failed(ctx, "Portal changed and no model key is configured "
                                                 "to re-learn it")
-            if not _older_than(portal.get("last_repair_at"), settings.repair_cooldown_min) and \
-                    portal.get("state") == "failed":
-                return self._repair_failed(ctx, "Repair cooldown active; will retry later")
+            hints = json.loads(portal.get("hints") or "{}")
+            if hints.get("repairFailed") and not _older_than(portal.get("last_repair_at"),
+                                                             settings.repair_cooldown_min):
+                return self._repair_failed(ctx, "Previous model repair failed recently; "
+                                                "cooldown active, will retry later")
             ctx.log("Step 3: model repair with diagnostics")
             self.db.update_portal(pid, last_repair_at=now_iso())
+            current = self.db.get_recipe(pid)
             try:
-                new = await self._learn(ctx, portal, fetcher,
-                                        repair_of=self.db.get_recipe(pid), problems=problems)
+                new = await self._learn(ctx, portal, fetcher, repair_of=current,
+                                        problems=problems)
             except PortalError as e:
                 if e.kind == "cancelled":
                     raise Cancelled() from e
                 prefix = "Blocked" if e.kind == "blocked" else "Repair failed"
                 return self._repair_failed(ctx, f"{prefix}: {e.message}")
-            if await self._try(ctx, fetcher, new, basic=True):
+            same = json.dumps(new, sort_keys=True) == json.dumps(current, sort_keys=True)
+            if same:
+                ctx.log("The model found no change in how the portal is read")
+            last_problems: list[str] = []
+            if await self._try(ctx, fetcher, new, repair_mode=True, out_problems=last_problems):
                 v = self.db.save_recipe(pid, new, "repair")
                 return self._repaired(ctx, f"Re-learned the portal (recipe v{v})")
-            return self._repair_failed(ctx, "Re-learned recipe still fails the checks")
+            if same:
+                return self._repair_failed(
+                    ctx, "The portal is read exactly as before but now shows a different picture ("
+                    + "; ".join(last_problems or problems)
+                    + "). Not auto-closing tenders; a person should confirm")
+            return self._repair_failed(ctx, "Re-learned recipe still fails the checks: "
+                                       + "; ".join(last_problems))
 
     async def _try(self, ctx: RunCtx, fetcher: Fetcher, recipe_d: dict | None,
-                   basic: bool = False) -> bool:
+                   repair_mode: bool = False, out_problems: list | None = None) -> bool:
         if not recipe_d:
             return False
         try:
             ok, problems, _ = await self._read_with(ctx, fetcher, parse_recipe(recipe_d), False,
-                                                    basic_checks=basic)
+                                                    repair_mode=repair_mode)
+            if out_problems is not None:
+                out_problems[:] = problems
             return ok
         except PortalError as e:
             if e.kind == "cancelled":
@@ -336,7 +365,7 @@ class Orchestrator:
         n = self.db.tender_count(ctx.pid)
         self._set_state(ctx.pid, "failed",
                         f"{msg}. Still holding {n} tenders from the last correct read."
-                        if n else msg)
+                        if n else msg, hints=json.dumps({"repairFailed": True}))
 
     # ------------------------------------------------------------ scheduler
     async def _schedule_loop(self) -> None:

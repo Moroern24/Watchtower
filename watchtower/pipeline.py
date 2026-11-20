@@ -25,6 +25,7 @@ class ReadResult:
     doc_tenders_with_links: int = 0
     doc_tenders_with_files: int = 0
     skipped_large: int = 0
+    zip_truncated: int = 0
 
 
 async def execute(db: DB, pid: str | None, recipe: Recipe, fetcher: Fetcher, steps: list[str],
@@ -34,14 +35,18 @@ async def execute(db: DB, pid: str | None, recipe: Recipe, fetcher: Fetcher, ste
     items = await read_list(recipe, fetcher, max_items, steps)
     res.raw_items = items
     previous = previous or {}
+    by_list_hash = {row.get("list_hash"): row for row in previous.values() if row.get("list_hash")}
     reused = 0
-    for item in items:
+    total = len(items)
+    for n, item in enumerate(items, 1):
+        if n % 10 == 0 or n == total:
+            steps.append(f"Details and documents: {n}/{total} tenders")
         tid = item.fields["id"]
-        prev = previous.get(tid)
-        res.list_hashes[tid] = item.list_hash
+        prev = by_list_hash.get(item.list_hash) if item.synthetic_id else previous.get(tid)
         if prev and prev.get("list_hash") == item.list_hash and prev.get("data"):
             data = json.loads(prev["data"]) if isinstance(prev["data"], str) else prev["data"]
             if data.get("_complete"):
+                res.list_hashes[data["id"]] = item.list_hash
                 res.tenders.append(data)
                 reused += 1
                 continue
@@ -53,6 +58,9 @@ async def execute(db: DB, pid: str | None, recipe: Recipe, fetcher: Fetcher, ste
             res.detail_errors += 1
             steps.append(f"Detail failed for {tid}: {e.message}")
         t = normalize_item(recipe, item.fields)
+        if item.synthetic_id:
+            t["_syntheticId"] = True
+        res.list_hashes[t["id"]] = item.list_hash
         t["documents"] = []
         complete = True
         if with_documents:
@@ -71,6 +79,7 @@ async def execute(db: DB, pid: str | None, recipe: Recipe, fetcher: Fetcher, ste
                                            else None, referer=referer)
                 t["documents"] = dr.entries
                 res.skipped_large += dr.skipped_large
+                res.zip_truncated += dr.zip_truncated
                 if dr.entries:
                     res.doc_tenders_with_files += 1
                 if dr.blocked:
