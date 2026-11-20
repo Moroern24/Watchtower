@@ -205,3 +205,13 @@ def test_file_download_has_name(client, mock_base):
     assert doc["fileName"].rsplit("/", 1)[-1] in r.headers["content-disposition"]
     full = client.get(f"/portals/{pid}?full=true").json()
     assert full["openCount"] == 11
+
+
+def test_dashboard_served(client):
+    r = client.get("/")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    html = r.text
+    for needle in ('id="kpis"', 'id="chips"', 'id="rows"', 'id="detail"', "/portals?full=true",
+                   "/refresh", "/runs?steps=true", "/tenders", 'method: "DELETE"'):
+        assert needle in html, needle
+    assert "<script src=" not in html  # no external bundle: one self-contained page

@@ -12,6 +12,13 @@
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
 
+## [0.4.0] — 2026-11-20 — operator dashboard
+- Rebuilt `GET /`: state KPIs that filter, state legend, add-portal feedback (201 / existing /
+  400), state chips + search, per-row Refresh/Details/Delete, detail panel with Runs, Tenders
+  (status filter, portal-local deadlines, file sizes) and Recipe tabs; 404 and API-down
+  handling; no DOM churn on auto-refresh when nothing changed; phone layout.
+- Test: dashboard is served as one self-contained page wired to the API.
+
 ## [0.3.0] — 2026-11-20 — fixes from operator pass #1
 - C1: a repaired recipe is checked against the last good read like any regular read. A sharp
   drop in tenders is never accepted by a repair; if the model returns the unchanged recipe the

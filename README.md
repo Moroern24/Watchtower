@@ -46,10 +46,14 @@ curl -XPOST localhost:8080/portals -H 'content-type: application/json' -d '{"url
    A portal that needs a login or captcha for its list or its documents is reported as `failed` and the reason says so. A captcha widget on a page whose documents still download is fine.
 6. **Politeness.** Every request goes through a per-host limiter that allows at most 1 request per second: pages, APIs, downloads and browser sessions. There are no logins and no captcha solving.
 
-The dashboard (`/`) shows each portal's state, the reason, its tender count, the time of its last success, and model cost. Clicking a portal opens:
-- every run, with a step-by-step log of what the system did;
-- the tenders, with their documents;
-- the learned recipe.
+The dashboard (`/`) is the operator's morning view: one self-contained HTML page, no build step.
+- **Summary:** portal total and a counter per state (click to filter), open tenders, data freshness.
+- **Add portal:** `POST /portals` with clear feedback (accepted / already monitored / rejected).
+- **Portal table:** filters by state, search by URL or id, problems first; full reason text,
+  open/held tender counts, last success, and Refresh / Details / Delete (with confirmation).
+- **Details:** runs (`read`/`repair`, start, end or "still running", result, step log),
+  tenders (status filter, buyer, deadline in the portal's local time with offset, document
+  downloads with sizes) and the learned recipe (read-only — no manual steering).
 
 Code map: `PROJECT_INSTRUCTIONS.md`, `ARCHITECTURE.md`, `DECISIONS.md`.
 
