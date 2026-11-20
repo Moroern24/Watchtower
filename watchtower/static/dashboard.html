@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#14171c;--muted:#5d6673;--line:#e3e6ea;--accent:#2457d6;
+--ok:#1a7f4b;--okbg:#e3f5ec;--warn:#9a6200;--warnbg:#fdf1dc;--bad:#b42318;--badbg:#fde8e6;
+--info:#2457d6;--infobg:#e6edfb;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaee;--muted:#9aa3af;
+--line:#2a2f3a;--accent:#7aa2ff;--ok:#5fd39a;--okbg:#12301f;--warn:#f2c065;--warnbg:#33270f;
+--bad:#ff8a80;--badbg:#3a1714;--info:#7aa2ff;--infobg:#17223d}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);
+font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;border-bottom:1px solid var(--line);
+background:var(--panel);position:sticky;top:0;z-index:2;flex-wrap:wrap}
+h1{font-size:18px;margin:0;letter-spacing:.2px}h1 span{color:var(--muted);font-weight:400}
+.sys{color:var(--muted);font-size:12px;margin-left:auto}
+main{padding:20px 24px;max-width:1500px;margin:0 auto}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums}.tile small{color:var(--muted)}
+form{display:flex;gap:8px;margin-bottom:16px}
+input[type=url]{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit}
+button{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font:inherit}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:hover{filter:brightness(.97)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:1100px){.layout.open{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+tr.row{cursor:pointer}tr.row:hover td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+tr.sel td{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.url{font-family:var(--mono);font-size:12px;word-break:break-all}
+.reason{color:var(--muted);font-size:13px;max-width:520px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.badge:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.serving{color:var(--ok);background:var(--okbg)}.healing{color:var(--warn);background:var(--warnbg)}
+.failed{color:var(--bad);background:var(--badbg)}.integrating{color:var(--info);background:var(--infobg)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel h2{font-size:16px;margin:0 0 4px}.panel h3{font-size:13px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px;margin:18px 0 8px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13px}
+.run{border:1px solid var(--line);border-radius:8px;margin-bottom:8px}
+.run summary{padding:8px 10px;cursor:pointer;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.run pre{margin:0;padding:8px 10px;border-top:1px solid var(--line);font:12px/1.5 var(--mono);white-space:pre-wrap;max-height:260px;overflow:auto;color:var(--muted)}
+.tender{border-top:1px solid var(--line);padding:8px 0}.tender:first-child{border-top:0}
+.tender a{color:var(--accent);text-decoration:none}.docs{font-size:12px;color:var(--muted)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.x{float:right}
+pre.recipe{font:11px/1.45 var(--mono);background:var(--bg);padding:10px;border-radius:8px;max-height:300px;overflow:auto}
+</style>
+</head>
+<body>
+<header><h1>Watchtower <span>· tender portal monitor</span></h1><div class="sys" id="sys"></div></header>
+<main>
+  <div class="tiles" id="tiles"></div>
+  <form id="add"><input type="url" id="newurl" placeholder="https://portal.example/ausschreibungen — add a portal by its address" required>
+    <button class="primary">Add portal</button></form>
+  <div class="layout" id="layout">
+    <div><table><thead><tr><th>State</th><th>Portal</th><th>Tenders</th><th>Last success</th><th>Model cost</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+    <div id="detail" hidden></div>
+  </div>
+</main>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ago = iso => { if(!iso) return "never"; const s=(Date.now()-new Date(iso))/1000;
+  if(s<60) return Math.round(s)+"s ago"; if(s<3600) return Math.round(s/60)+" min ago";
+  if(s<86400) return Math.round(s/3600)+" h ago"; return Math.round(s/86400)+" d ago"; };
+const usd = v => "$"+(v||0).toFixed(v>=1?2:3);
+let selected = null, portals = [];
+
+async function j(url, opt){ const r = await fetch(url, opt); if(!r.ok && r.status!==204) throw new Error(r.status); return r.status===204?null:r.json(); }
+
+async function refresh(){
+  try {
+    const [ps, sys] = await Promise.all([j("/portals?full=true"), j("/system")]);
+    portals = ps; renderTiles(ps, sys); renderRows(ps);
+    document.getElementById("sys").textContent =
+      `model ${sys.model}${sys.modelKeyConfigured?"":" (NO KEY)"} · browser ${sys.browserAvailable?"on":"off"} · reads every ${sys.readIntervalMin} min · updated ${new Date().toLocaleTimeString()}`;
+    if(selected) renderDetail(selected);
+  } catch(e){ console.error(e); }
+}
+
+function renderTiles(ps, sys){
+  const c = s => ps.filter(p=>p.state===s).length;
+  const t = ps.reduce((a,p)=>a+p.tenderCount,0);
+  document.getElementById("tiles").innerHTML = [
+    ["Portals", ps.length, ""], ["Serving", c("serving"), "serving"], ["Healing", c("healing"), "healing"],
+    ["Failed", c("failed"), "failed"], ["Integrating", c("integrating"), "integrating"],
+    ["Tenders held", t, ""], ["Model cost (all)", usd(sys.totalModelCostUsd), ""]
+  ].map(([k,v,cls])=>`<div class="tile"><small>${k}</small><b class="${cls?cls.replace(/.*/,m=>({serving:"ok",failed:"bad"}[m]||"")):""}">${esc(v)}</b></div>`).join("");
+}
+
+function renderRows(ps){
+  const tb = document.getElementById("rows");
+  if(!ps.length){ tb.innerHTML = `<tr><td colspan="5" class="empty">No portals yet. Add one above.</td></tr>`; return; }
+  const order = {failed:0, healing:1, integrating:2, serving:3};
+  ps = [...ps].sort((a,b)=>order[a.state]-order[b.state]);
+  tb.innerHTML = ps.map(p=>`<tr class="row ${p.id===selected?"sel":""}" data-id="${esc(p.id)}">
+    <td><span class="badge ${esc(p.state)}">${esc(p.state)}</span>${p.activeRunId?'<div class="muted" style="font-size:11px;margin-top:4px">● run in progress</div>':""}</td>
+    <td><div class="url">${esc(p.url)}</div><div class="reason">${esc(p.reason)}</div></td>
+    <td style="font-variant-numeric:tabular-nums">${p.tenderCount}</td>
+    <td title="${esc(p.lastSuccessAt||"")}">${ago(p.lastSuccessAt)}</td>
+    <td class="muted" style="white-space:nowrap">${usd(p.modelUsage.costUsd)}<br><small>${p.modelUsage.llmCalls} model calls</small></td></tr>`).join("");
+  tb.querySelectorAll("tr.row").forEach(tr=>tr.onclick=()=>{selected=tr.dataset.id; renderRows(portals); renderDetail(selected);});
+}
+
+async function renderDetail(id){
+  const box = document.getElementById("detail"), lay = document.getElementById("layout");
+  const p = portals.find(x=>x.id===id); if(!p){ box.hidden=true; lay.classList.remove("open"); return; }
+  const [runs, tenders, recipes] = await Promise.all([j(`/portals/${id}/runs?steps=true`), j(`/portals/${id}/tenders`), j(`/portals/${id}/recipes`)]);
+  if(selected!==id) return;
+  const openIds = new Set([...box.querySelectorAll("details[open]")].map(d=>d.dataset.k));
+  box.hidden=false; lay.classList.add("open");
+  const st = s => ({open:"ok",closed:"muted",withdrawn:"bad"}[s]||"");
+  box.innerHTML = `<div class="panel">
+    <button class="x" onclick="selected=null;renderDetail()">Close</button>
+    <h2><span class="badge ${esc(p.state)}">${esc(p.state)}</span></h2>
+    <div class="url" style="margin:6px 0">${esc(p.url)}</div>
+    <div class="kv"><span class="muted">Reason</span><span>${esc(p.reason)}</span>
+      <span class="muted">Last success</span><span>${esc(p.lastSuccessAt||"never")}</span>
+      <span class="muted">Last read</span><span>${esc(p.lastReadAt||"never")}</span>
+      <span class="muted">Recipe</span><span>v${p.recipeVersion||0} (${recipes.length} versions)</span>
+      <span class="muted">Model usage</span><span>${usd(p.modelUsage.costUsd)} · ${p.modelUsage.llmCalls} calls · ${p.modelUsage.inputTokens.toLocaleString()} in / ${p.modelUsage.outputTokens.toLocaleString()} out tokens</span></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button onclick="act('refresh','${esc(id)}')">Read now</button>
+      <button onclick="act('delete','${esc(id)}')">Remove</button>
+      <a href="/portals/${esc(id)}/tenders" target="_blank"><button>Tenders JSON</button></a></div>
+    <h3>What the system did (${runs.length} runs)</h3>
+    ${runs.slice(0,15).map(r=>`<details class="run" data-k="${esc(r.id)}" ${openIds.has(r.id)?"open":""}><summary>
+      <b>${esc(r.kind)}</b>
+      <span class="${r.result==="ok"?"ok":r.result==="failed"?"bad":"muted"}">${esc(r.result||"running…")}</span>
+      <span class="muted">${ago(r.startedAt)}${r.finishedAt?" · "+Math.max(0,Math.round((new Date(r.finishedAt)-new Date(r.startedAt))/1000))+"s":""}</span>
+      ${r.llmCalls?`<span class="muted">· ${r.llmCalls} model calls · ${usd(r.costUsd)}</span>`:`<span class="muted">· no model calls</span>`}
+      ${r.reason?`<div class="reason" style="flex-basis:100%">${esc(r.reason)}</div>`:""}</summary>
+      <pre>${esc((r.steps||[]).join("\n"))}</pre></details>`).join("") || '<div class="muted">No runs yet.</div>'}
+    <h3>Tenders (${tenders.length})</h3>
+    ${tenders.slice(0,25).map(t=>`<div class="tender"><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a>
+      <div class="muted" style="font-size:12px">${esc(t.id)} · ${esc(t.buyerName||"buyer n/a")} · deadline ${esc(t.submissionDeadline||"n/a")} · <span class="${st(t.status)}">${esc(t.status)}</span></div>
+      <div class="docs">${(t.documents||[]).map(d=>`<a href="${esc(d.path)}" target="_blank">${esc(d.fileName)}</a>`).join(" · ")||"no documents"}</div></div>`).join("") || '<div class="muted">No tenders held.</div>'}
+    ${tenders.length>25?`<div class="muted">… ${tenders.length-25} more in the JSON.</div>`:""}
+    <h3>Current recipe</h3>
+    <details data-k="recipe" ${openIds.has("recipe")?"open":""}><summary class="muted">show learned reading recipe (v${p.recipeVersion||0})</summary>
+    <pre class="recipe">${esc(recipes[0]?JSON.stringify(recipes.find(r=>r.version===p.recipeVersion)?.recipe||recipes[0].recipe,null,1):"none yet")}</pre></details>
+  </div>`;
+}
+
+async function act(what, id){
+  if(what==="delete"){ if(!confirm("Remove this portal?")) return; await j(`/portals/${id}`,{method:"DELETE"}); selected=null; }
+  else await j(`/portals/${id}/refresh`,{method:"POST"});
+  refresh();
+}
+
+document.getElementById("add").onsubmit = async e => {
+  e.preventDefault(); const url = document.getElementById("newurl").value.trim();
+  const r = await j("/portals",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+  document.getElementById("newurl").value=""; selected=r.id; refresh();
+};
+refresh(); setInterval(refresh, 4000);
+</script>
+</body>
+</html>

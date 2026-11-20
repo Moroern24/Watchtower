@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mockportals",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "mockportals.server:app", "--port", "8090"],
+      "port": 8090
+    },
+    {
+      "name": "watchtower-demo",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "devtools.demo:app", "--port", "8080"],
+      "port": 8080
+    }
+  ]
+}
