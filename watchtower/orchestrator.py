@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 from urllib.parse import urlsplit, urlunsplit
 
-from . import validate
+from . import prefs, validate
 from .config import settings
 from .db import DB, now_iso
 from .fetcher import Cancelled, Fetcher, PortalError
@@ -309,7 +309,7 @@ class Orchestrator:
                                                 "to re-learn it")
             hints = json.loads(portal.get("hints") or "{}")
             if hints.get("repairFailed") and not _older_than(portal.get("last_repair_at"),
-                                                             settings.repair_cooldown_min):
+                                                             prefs.get(self.db)["repairCooldownMin"]):
                 return self._repair_failed(ctx, "Previous model repair failed recently; "
                                                 "cooldown active, will retry later")
             ctx.log("Step 3: model repair with diagnostics")
@@ -379,19 +379,22 @@ class Orchestrator:
             await asyncio.sleep(settings.scheduler_tick_sec)
 
     async def _tick(self) -> None:
+        cfg = prefs.get(self.db)                 # live: changes apply on the next tick
+        interval, auto = cfg["checkIntervalMin"], cfg["autoCheck"]
         for p in self.db.list_portals():
             pid = p["id"]
             refresh_deadline_status(self.db, pid)
             if pid in self.active:
                 continue
             hints = json.loads(p.get("hints") or "{}")
-            interval = settings.read_interval_min
             if p["state"] == "integrating" or (p["state"] == "healing"):
-                self._launch(pid, "read")  # e.g. interrupted by a restart
+                self._launch(pid, "read")  # unfinished attach/repair, e.g. after a restart
+            elif not auto:
+                continue                   # automatic checks paused by the operator
             elif p["state"] == "serving" and _older_than(p["last_read_at"], interval):
                 self._launch(pid, "read")
             elif p["state"] == "failed" and not hints.get("blocked") and \
                     _older_than(p["last_read_at"], interval * 2) and \
                     (p.get("recipe_version") or _older_than(p.get("last_repair_at"),
-                                                            settings.repair_cooldown_min)):
+                                                            cfg["repairCooldownMin"])):
                 self._launch(pid, "read")

@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Watchtower</title>
+<title>Patterno Watchtower</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%22-80%20-80%20960%20960%22%3E%3Crect%20x%3D%22-80%22%20y%3D%22-80%22%20width%3D%22960%22%20height%3D%22960%22%20rx%3D%22200%22%20fill%3D%22%230a0a1a%22/%3E%3Cg%20fill%3D%22%23ffffff%22%3E%3Cpath%20d%3D%22M430.722%20380.158C276.637%20380.158%20142.935%20292.957%2076.1625%20165.282C31.9187%20226.23%204.37923%20300.09%200.496614%20380.158C0.158014%20386.749%200%20393.341%200%20400C0%20406.659%200.158014%20413.251%200.496614%20419.842C4.37923%20499.91%2031.9187%20573.77%2076.1851%20634.718C142.957%20507.065%20276.659%20419.842%20430.745%20419.842H799.436C799.819%20413.296%20800%20406.659%20800%20400C800%20393.341%20799.842%20386.704%20799.436%20380.158H430.722Z%22/%3E%3Cpath%20d%3D%22M602.957%20472.619C599.887%20472.619%20596.84%20472.731%20593.792%20472.799C417.02%20476.772%20268.555%20595.305%20219.91%20757.178C274.041%20784.56%20335.214%20799.955%20399.977%20799.955C579.278%20799.955%20731.016%20681.941%20781.738%20519.3H781.851C782.235%20518.081%20782.573%20516.84%20782.935%20515.621C782.957%20515.531%20782.98%20515.463%20783.025%20515.372C787.201%20501.422%20790.61%20487.133%20793.273%20472.596H602.935L602.957%20472.619Z%22/%3E%3Cpath%20d%3D%22M565.508%20325.553C577.833%20326.704%20590.316%20327.336%20602.957%20327.336H793.296C790.632%20312.799%20787.224%20298.51%20783.025%20284.56C782.957%20284.357%20782.889%20284.176%20782.844%20283.973C782.777%20283.747%20782.732%20283.544%20782.664%20283.318H782.641C732.754%20119.3%20580.271%200%20400%200C335.237%200%20274.063%2015.395%20219.932%2042.7765C265.959%20195.937%20401.354%20310.316%20565.531%20325.553H565.508Z%22/%3E%3C/g%3E%3C/svg%3E">
 <script>/* theme before first paint: Patterno's dark by default, remembered per browser */
-(function(){var t="dark";try{t=localStorage.getItem("wt-theme")||"dark"}catch(e){}document.documentElement.dataset.theme=t})();</script>
+(function(){var t="dark";try{t=localStorage.getItem("wt-theme")||"dark"}catch(e){}
+if(t==="system")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";document.documentElement.dataset.theme=t})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -52,7 +54,11 @@ header{position:sticky;top:0;z-index:10;padding:12px 24px 0}
 .hbar{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:8px 10px 8px 22px;
   background:color-mix(in srgb,var(--panel) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border:1px solid var(--line);border-radius:999px}
-.brand{font:500 22px/1 var(--serif);letter-spacing:-.01em;margin:0}
+.brand{display:flex;align-items:center;gap:10px;margin:0;color:var(--ink);text-decoration:none;font-weight:400}
+.brand .mark{width:21px;height:21px;flex:none}
+.brand .pt{font:500 23px/1 var(--serif);letter-spacing:-.01em}
+.brand .sep{width:1px;height:18px;background:var(--line2);margin:0 2px}
+.brand .wt{font-size:14px;font-weight:500;letter-spacing:.01em;color:var(--muted)}
 .verdict{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500}
 .verdict .dot{width:9px;height:9px}
 .addform{display:flex;gap:6px;flex:1 1 320px;max-width:500px;margin-left:auto}
@@ -147,6 +153,38 @@ main{max-width:1560px;margin:0 auto;padding:20px 24px 24px}
 .docs a{color:var(--accent2);text-decoration:none;overflow-wrap:anywhere}.docs a:hover{text-decoration:underline}
 .docs .sz{color:var(--faint);margin-left:4px}
 
+/* settings dialog */
+dialog{border:1px solid var(--line2);border-radius:20px;background:var(--panel);color:var(--ink);padding:0;width:min(520px,calc(100vw - 24px));
+  max-height:calc(100vh - 32px);box-shadow:0 24px 80px rgba(0,0,0,.45)}
+dialog::backdrop{background:rgba(5,5,15,.55);backdrop-filter:blur(3px)}
+.sform{display:flex;flex-direction:column;max-height:calc(100vh - 34px)}
+.shead{display:flex;align-items:center;padding:18px 20px 6px}.shead h2{font-size:17px;font-weight:600;margin:0;flex:1}
+.sbody{padding:4px 20px 8px;overflow:auto}
+.sbody section{padding:14px 0;border-top:1px solid var(--line)}.sbody section:first-child{border-top:0}
+.sbody .label{margin-bottom:10px}
+.help{font-size:12.5px;color:var(--faint);margin:8px 0 0}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--sunk);border:1px solid var(--line)}
+.seg button{border:0;padding:5px 16px;font-size:13px;color:var(--muted)}
+.seg button[aria-checked="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.switchrow{display:flex;align-items:center;gap:14px;cursor:pointer}
+.switchrow span{flex:1}.switchrow b{display:block;font-weight:500}.switchrow small{color:var(--faint);font-size:12.5px}
+.switch{appearance:none;-webkit-appearance:none;width:40px;height:23px;border-radius:999px;background:var(--idle);position:relative;cursor:pointer;flex:none;margin:0;transition:background .15s}
+.switch:before{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch:checked{background:var(--accent)}.switch:checked:before{transform:translateX(17px)}
+.field{margin-top:14px}.field>label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.field.off{opacity:.45;pointer-events:none}
+.num{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.num input{width:96px;padding:7px 12px;border:1px solid var(--line2);border-radius:999px;background:var(--sunk);font-variant-numeric:tabular-nums}
+.num .presets{display:flex;gap:4px;margin-left:6px}
+.modelbox{font-size:13px;padding:10px 12px;border-radius:12px;background:var(--sunk);border:1px solid var(--line)}
+.modelbox b{font-weight:600}.modelbox .warn{color:var(--warn)}
+.sfoot{display:flex;align-items:center;gap:8px;padding:12px 20px 18px;border-top:1px solid var(--line)}
+.smsg{flex:1;font-size:12.5px}.smsg.bad{color:var(--bad)}
+.tag.quiet{color:var(--muted);background:var(--sunk);cursor:default}
+.iconbtn{width:34px;height:34px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex:none;
+  border-color:transparent;color:var(--muted)}
+.iconbtn:hover{color:var(--ink);background:var(--hover);border-color:var(--line2)}
+.iconbtn svg{width:18px;height:18px}
 footer{max-width:1560px;margin:0 auto;padding:4px 24px 28px;font-size:12px;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap}
 footer button{padding:0;border:0;color:var(--faint);font-size:12px}footer button:hover{color:var(--ink);background:none}
 
@@ -163,7 +201,7 @@ footer button{padding:0;border:0;color:var(--faint);font-size:12px}footer button
 <body>
 <header id="hdr">
   <div class="hbar">
-    <h1 class="brand">Watchtower</h1>
+    <h1 class="brand" aria-label="Patterno Watchtower"><svg class="mark" viewBox="0 0 800 800" fill="currentColor" aria-hidden="true"><path d="M430.722 380.158C276.637 380.158 142.935 292.957 76.1625 165.282C31.9187 226.23 4.37923 300.09 0.496614 380.158C0.158014 386.749 0 393.341 0 400C0 406.659 0.158014 413.251 0.496614 419.842C4.37923 499.91 31.9187 573.77 76.1851 634.718C142.957 507.065 276.659 419.842 430.745 419.842H799.436C799.819 413.296 800 406.659 800 400C800 393.341 799.842 386.704 799.436 380.158H430.722Z"/><path d="M602.957 472.619C599.887 472.619 596.84 472.731 593.792 472.799C417.02 476.772 268.555 595.305 219.91 757.178C274.041 784.56 335.214 799.955 399.977 799.955C579.278 799.955 731.016 681.941 781.738 519.3H781.851C782.235 518.081 782.573 516.84 782.935 515.621C782.957 515.531 782.98 515.463 783.025 515.372C787.201 501.422 790.61 487.133 793.273 472.596H602.935L602.957 472.619Z"/><path d="M565.508 325.553C577.833 326.704 590.316 327.336 602.957 327.336H793.296C790.632 312.799 787.224 298.51 783.025 284.56C782.957 284.357 782.889 284.176 782.844 283.973C782.777 283.747 782.732 283.544 782.664 283.318H782.641C732.754 119.3 580.271 0 400 0C335.237 0 274.063 15.395 219.932 42.7765C265.959 195.937 401.354 310.316 565.531 325.553H565.508Z"/></svg><span class="pt">Patterno</span><span class="sep"></span><span class="wt">Watchtower</span></h1>
     <div class="verdict" id="verdict"><span class="dot"></span><span id="vtext">Loading…</span></div>
     <form class="addform" id="add" novalidate>
       <input id="newurl" type="text" inputmode="url" autocomplete="off" spellcheck="false"
@@ -171,6 +209,9 @@ footer button{padding:0;border:0;color:var(--faint);font-size:12px}footer button
       <button class="primary" id="addbtn">Add portal</button>
     </form>
     <span id="keytag"></span>
+    <button class="iconbtn" id="openSettings" type="button" aria-haspopup="dialog" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
   </div>
   <div class="flash" id="flash" role="status"></div>
 </header>
@@ -186,7 +227,48 @@ footer button{padding:0;border:0;color:var(--faint);font-size:12px}footer button
     <aside class="box detail" id="detail" aria-label="Portal details"></aside>
   </section>
 </main>
-<footer><span id="fresh">Updating…</span><span id="sys"></span><button id="theme" type="button">Light theme</button></footer>
+<footer><span id="fresh">Updating…</span><span id="sys"></span><button id="footSettings" type="button">Settings</button></footer>
+
+<dialog id="settings" aria-labelledby="stitle">
+  <form method="dialog" class="sform" id="sform" novalidate>
+    <div class="shead"><h2 id="stitle">Settings</h2><button class="sm quiet" value="cancel" formnovalidate aria-label="Close settings">✕</button></div>
+    <div class="sbody">
+      <section>
+        <div class="label">Appearance</div>
+        <div class="seg" role="radiogroup" aria-label="Theme">
+          <button type="button" role="radio" data-theme-choice="system">System</button>
+          <button type="button" role="radio" data-theme-choice="dark">Dark</button>
+          <button type="button" role="radio" data-theme-choice="light">Light</button>
+        </div>
+        <p class="help">Applies right away and is remembered in this browser.</p>
+      </section>
+      <section>
+        <div class="label">Automatic checks</div>
+        <label class="switchrow" for="sAuto"><span><b>Check portals automatically</b>
+          <small>Re-reads every working portal on a schedule — no model calls, one request per second per site.</small></span>
+          <input type="checkbox" class="switch" id="sAuto" role="switch"></label>
+        <div class="field" id="sIntervalField"><label for="sInterval">Check every</label>
+          <div class="num"><input id="sInterval" type="number" min="1" max="1440" step="1" inputmode="numeric"> <span class="muted">minutes</span>
+            <span class="presets"><button type="button" class="sm" data-min="5">5</button><button type="button" class="sm" data-min="15">15</button>
+              <button type="button" class="sm" data-min="30">30</button><button type="button" class="sm" data-min="60">60</button></span></div>
+          <p class="help">Failed portals are re-checked at twice this interval. You can always use “Refresh” on a portal.</p></div>
+      </section>
+      <section>
+        <div class="label">Repairs</div>
+        <div class="field" style="margin-top:0"><label for="sCooldown">After a model repair fails, wait before trying again</label>
+          <div class="num"><input id="sCooldown" type="number" min="0" max="10080" step="1" inputmode="numeric"> <span class="muted">minutes</span></div>
+          <p class="help">Keeps model cost down when a portal can’t be fixed automatically. Repairs themselves stay automatic.</p></div>
+      </section>
+      <section>
+        <div class="label">Model</div>
+        <div class="modelbox" id="sModel">Loading…</div>
+        <p class="help">Keys are set on the server (environment variables or a <code>.env</code> file), never in the browser.</p>
+      </section>
+    </div>
+    <div class="sfoot"><span class="smsg" id="smsg" role="status"></span>
+      <button class="sm" value="cancel" formnovalidate>Cancel</button><button class="primary" id="ssave" type="submit">Save</button></div>
+  </form>
+</dialog>
 
 <script>
 "use strict";
@@ -272,8 +354,9 @@ function renderTop() {
 
   const sys = S.sys || {};
   $("keytag").innerHTML = sys.modelKeyConfigured === false
-    ? `<span class="tag" title="ANTHROPIC_API_KEY is not set. Portals already attached keep working; new portals cannot be learned.">No model key</span>` : "";
-  $("sys").textContent = sys.model ? `Model ${sys.model} · reads every ${sys.readIntervalMin} min · model cost ${usd(sys.totalModelCostUsd)}` : "";
+    ? `<span class="tag" title="${esc((sys.modelProblem || "No model configured") + ". Portals already attached keep working; new portals cannot be learned.")}">${sys.llmProvider ? "Model not set" : "No model key"}</span>` : "";
+  if (sys.autoCheck === false) $("keytag").innerHTML += ` <span class="tag quiet" title="Turn automatic checks back on in Settings">Auto-check paused</span>`;
+  $("sys").textContent = sys.readIntervalMin ? `${sys.autoCheck === false ? "Automatic checks paused" : `Auto-check every ${sys.readIntervalMin} min`} · ${sys.llmProvider ? `Model ${sys.llmProvider} · ${sys.model || "—"}` : "No model"} · model cost ${usd(sys.totalModelCostUsd)}` : "";
 
   const card = (key, label, num) => `<button class="card c-${key} ${num ? "" : "zero"} ${S.filter === key ? "on" : ""}" data-f="${key}"
       aria-pressed="${S.filter === key}" title="${key === "all" ? "Show all portals" : esc(STATE[key].headline + ". " + STATE[key].note)}">
@@ -374,7 +457,7 @@ function renderDetail() {
       <div class="hist"><span class="label">Recent runs</span>${beats(p.recentRuns)}</div>
       <div class="dacts">
         <button class="sm" id="drefresh" ${p.activeRunId || S.busy.has(p.id) ? "disabled" : ""}>${p.activeRunId ? "Reading…" : "Refresh now"}</button>
-        <span class="sp"></span><span class="faint" style="font-size:12px" title="${(u.inputTokens || 0).toLocaleString()} in / ${(u.outputTokens || 0).toLocaleString()} out tokens">Model ${usd(u.costUsd)}</span>
+        <span class="sp"></span><span class="faint" style="font-size:12px" title="${(u.inputTokens || 0).toLocaleString()} in / ${(u.outputTokens || 0).toLocaleString()} out tokens">${esc(nextCheckText(p))} · Model ${usd(u.costUsd)}</span>
         <button class="sm quiet danger" id="ddelete" ${S.busy.has(p.id) ? "disabled" : ""}>Delete</button></div>
       ${d.error ? `<div class="banner" style="margin:12px 0 0">Couldn’t refresh details: ${esc(d.error)}</div>` : ""}
     </div>
@@ -484,13 +567,68 @@ $("list").onkeydown = e => {
   if (row && e.target === row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); select(row.dataset.id); }
 };
 document.addEventListener("keydown", e => {
+  if (document.getElementById("settings").open) return;   // the dialog handles its own keys
   if (e.key === "Escape" && S.sel) select(null);
   if (e.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); $("q").focus(); }
 });
-const paintTheme = () => { $("theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light theme" : "Dark theme"; };
-$("theme").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  document.documentElement.dataset.theme = t; try { localStorage.setItem("wt-theme", t); } catch (e) {} paintTheme(); };
-paintTheme();
+/* ---------------------------------------------------------------- settings */
+function nextCheckText(p) {
+  if (p.activeRunId) return "Checking now";
+  if (S.sys && S.sys.autoCheck === false) return "Auto-check paused";
+  if (!p.nextCheckAt) return p.state === "failed" ? "Not re-checked automatically" : "";
+  const min = Math.round((new Date(p.nextCheckAt) - Date.now()) / 60000);
+  return min <= 0 ? "Next check due now" : `Next check in ${min < 60 ? min + " min" : Math.round(min / 60) + " h"}`;
+}
+const THEME_KEY = "wt-theme", lightMQ = matchMedia("(prefers-color-scheme: light)");
+const themeChoice = () => { try { return localStorage.getItem(THEME_KEY) || "dark"; } catch (e) { return "dark"; } };
+function applyTheme(choice) {
+  document.documentElement.dataset.theme = choice === "system" ? (lightMQ.matches ? "light" : "dark") : choice;
+  document.querySelectorAll("[data-theme-choice]").forEach(b => b.setAttribute("aria-checked", String(b.dataset.themeChoice === choice)));
+}
+lightMQ.addEventListener("change", () => { if (themeChoice() === "system") applyTheme("system"); });
+document.querySelectorAll("[data-theme-choice]").forEach(b => b.onclick = () => {
+  try { localStorage.setItem(THEME_KEY, b.dataset.themeChoice); } catch (e) {}
+  applyTheme(b.dataset.themeChoice);
+});
+applyTheme(themeChoice());
+
+const dlg = $("settings");
+function syncAutoField() { $("sIntervalField").classList.toggle("off", !$("sAuto").checked); }
+$("sAuto").onchange = syncAutoField;
+document.querySelectorAll("[data-min]").forEach(b => b.onclick = () => { $("sInterval").value = b.dataset.min; });
+async function openSettings() {
+  $("smsg").textContent = ""; $("smsg").className = "smsg";
+  try {
+    const st = await api("/settings");
+    $("sAuto").checked = st.autoCheck; $("sInterval").value = st.checkIntervalMin; $("sCooldown").value = st.repairCooldownMin;
+    const m = st.model || {};
+    $("sModel").innerHTML = m.configured
+      ? `<b>${esc(m.provider)}</b> · ${esc(m.model)} <span class="faint">— ready</span>`
+      : `<span class="warn">${esc(m.problem || "No model configured")}</span><br><span class="faint">Attached portals keep working; new portals can’t be learned until a model is set.</span>`;
+  } catch (e) { $("smsg").textContent = "Couldn’t load settings: " + e.message; $("smsg").className = "smsg bad"; }
+  syncAutoField(); applyTheme(themeChoice());
+  dlg.showModal();
+}
+$("openSettings").onclick = openSettings;
+$("footSettings").onclick = openSettings;
+$("sform").onsubmit = async e => {
+  if (e.submitter && e.submitter.value === "cancel") return;      // dialog closes itself
+  e.preventDefault();
+  const interval = Number($("sInterval").value), cooldown = Number($("sCooldown").value);
+  const bad = (v, lo, hi) => !Number.isInteger(v) || v < lo || v > hi;
+  if ($("sAuto").checked && bad(interval, 1, 1440)) { $("smsg").textContent = "Check interval must be 1–1440 minutes."; $("smsg").className = "smsg bad"; $("sInterval").focus(); return; }
+  if (bad(cooldown, 0, 10080)) { $("smsg").textContent = "Repair wait must be 0–10080 minutes."; $("smsg").className = "smsg bad"; $("sCooldown").focus(); return; }
+  const body = {autoCheck: $("sAuto").checked, repairCooldownMin: cooldown};
+  if (!bad(interval, 1, 1440)) body.checkIntervalMin = interval;
+  $("ssave").disabled = true;
+  try {
+    const st = await api("/settings", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    dlg.close();
+    flash(st.autoCheck ? `Saved. Portals are checked every ${st.checkIntervalMin} min.` : "Saved. Automatic checks are paused.", "ok");
+    S.dsig = ""; await poll();
+  } catch (err) { $("smsg").textContent = "Not saved: " + err.message; $("smsg").className = "smsg bad"; }
+  finally { $("ssave").disabled = false; }
+};
 new ResizeObserver(() => document.documentElement.style.setProperty("--hh", $("hdr").offsetHeight + 12 + "px")).observe($("hdr"));
 
 poll();

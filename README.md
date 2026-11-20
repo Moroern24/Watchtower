@@ -5,6 +5,7 @@ Watchtower connects public-tender portals on its own, watches them and repairs i
 ```bash
 docker build -t watchtower .
 docker run -p 8080:8080 -e ANTHROPIC_API_KEY=sk-ant-... -v wt-data:/data watchtower
+# any other provider works too, e.g.:  -e GEMINI_API_KEY=... -e LLM_MODEL=<model name>
 # open http://localhost:8080 , or:
 curl -XPOST localhost:8080/portals -H 'content-type: application/json' -d '{"url":"https://…"}'
 ```
@@ -57,20 +58,50 @@ designed so the answer to "is everything fine?" takes a glance:
   (tenders, last correct read, last checked), a recent-runs strip, and two tabs — **What happened**
   (reads and repairs in plain words, click for the step log) and **Tenders** (status filter, buyer,
   deadline in the portal's local time, document downloads with sizes). No manual steering.
-- **Look:** Patterno's visual language (navy + indigo, Inter, EB Garamond wordmark, pills); dark by
+- **Settings** (header or footer): theme (System / Dark / Light, per browser), automatic checks on/off
+  and their interval in minutes, the wait after a failed model repair, and the model in use (read-only;
+  keys stay on the server). Schedule settings are stored in the database, apply on the next scheduler
+  tick and are also available as `GET`/`PUT /settings`. Each portal shows when it is checked next.
+- **Look:** Patterno branding (mark + wordmark in the header, favicon) and visual language (navy + indigo, Inter, EB Garamond wordmark, pills); dark by
   default with a light theme in the footer. Fonts fall back to system fonts offline.
 
 Code map: `PROJECT_INSTRUCTIONS.md`, `ARCHITECTURE.md`, `DECISIONS.md`.
+
+## Model provider
+
+Watchtower needs one model to attach and repair portals (regular reads never call it). Any of these
+works — set **one** key; the first one found is used, or force one with `LLM_PROVIDER`:
+
+| Provider | Key variable | Model |
+|---|---|---|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | default `claude-opus-5-5`, override with `LLM_MODEL` |
+| OpenAI | `OPENAI_API_KEY` | `LLM_MODEL` required |
+| Google Gemini | `GEMINI_API_KEY` | `LLM_MODEL` required |
+| Groq | `GROQ_API_KEY` | `LLM_MODEL` required |
+| OpenRouter | `OPENROUTER_API_KEY` | `LLM_MODEL` required |
+| DeepSeek | `DEEPSEEK_API_KEY` | `LLM_MODEL` required |
+| Mistral | `MISTRAL_API_KEY` | `LLM_MODEL` required |
+| Any OpenAI-compatible API (e.g. local Ollama `http://localhost:11434/v1`) | `LLM_BASE_URL` (+ `LLM_API_KEY` if needed) | `LLM_MODEL` required |
+
+Everything except Anthropic goes through one OpenAI-compatible adapter (`/chat/completions`, JSON
+mode when the provider supports it, automatic back-off on 429). Use the exact model name from your
+provider's documentation. Pick a model with a context window of at least ~32k tokens, or lower
+`PROMPT_PAGE_CHARS`. For local development the variables can live in a `.env` file in the project
+root (git-ignored); real environment variables take precedence.
 
 ## Environment variables
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | – (**required** to attach new portals) | Claude API key |
-| `WATCHTOWER_MODEL` | `claude-opus-5-5` | Model used for learn, verify and repair |
-| `MODEL_PRICE_INPUT_PER_MTOK` / `MODEL_PRICE_OUTPUT_PER_MTOK` | `4` / `20` | USD prices used for the cost display |
-| `READ_INTERVAL_MIN` | `30` | Regular read interval per portal |
-| `REPAIR_COOLDOWN_MIN` | `120` | Minimum time between model repairs of a failed portal |
+| *one provider key* (see above) | – (**required** to attach new portals) | Model access |
+| `LLM_MODEL` (alias `WATCHTOWER_MODEL`) | `claude-opus-5-5` for Anthropic | Model used for learn, verify and repair |
+| `LLM_PROVIDER` | auto | Force a provider when several keys are set |
+| `LLM_BASE_URL` / `LLM_API_KEY` | – | Any OpenAI-compatible endpoint |
+| `LLM_MAX_OUTPUT_TOKENS` | `8192` | Output cap for OpenAI-compatible models |
+| `PROMPT_PAGE_CHARS` | `45000` | Compacted page size per prompt (lower for small-context models) |
+| `MODEL_PRICE_INPUT_PER_MTOK` / `MODEL_PRICE_OUTPUT_PER_MTOK` | `4` / `20` for Anthropic, `0` otherwise | USD prices used for the cost display |
+| `READ_INTERVAL_MIN` | `30` | Default automatic check interval (change it live in Settings) |
+| `REPAIR_COOLDOWN_MIN` | `120` | Default wait after a failed model repair (change it live in Settings) |
 | `MAX_TENDERS_PER_PORTAL` | `500` | Safety cap per read |
 | `MAX_FILE_BYTES` | `262144000` | Files and ZIPs larger than this are skipped (250 MB) |
 | `MIN_REQUEST_INTERVAL_SEC` | `1.05` | Per-host request spacing |
@@ -89,7 +120,7 @@ These are estimates. The real figure for each portal and each run is measured fr
 | Regular read | **0** | 0 | **$0** |
 | Repair (only when a portal changes) | 4–8 | the same as attach | ≈ $0.30–0.80 per real layout change |
 
-Pages are compacted before they are sent: repeated rows are collapsed, scripts are dropped, and texts are truncated. This keeps the input small. With a cheaper model (`WATCHTOWER_MODEL=claude-sonnet-5-5`), costs are about half.
+Pages are compacted before they are sent: repeated rows are collapsed, scripts are dropped, and texts are truncated. This keeps the input small. With a cheaper model (`LLM_MODEL=claude-sonnet-5-5`), costs are about half; other providers cost what their price list says (set `MODEL_PRICE_*` to see it on the dashboard).
 
 ## Development
 

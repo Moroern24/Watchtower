@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS files (
 CREATE TABLE IF NOT EXISTS doc_cache (
   url TEXT PRIMARY KEY, fetched_at TEXT, entries TEXT
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY, value TEXT
+);
 """
 
 

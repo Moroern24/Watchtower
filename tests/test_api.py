@@ -40,9 +40,13 @@ class FakeLearner:
         return R.ssr_v2(base)
 
 
+_DBREF = [None]
+
+
 @pytest.fixture
 def client(mock_base):
     db = DB(":memory:")
+    _DBREF[0] = db
     app = create_app(db, lambda d: Orchestrator(d, FakeLearner, llm_available=lambda: True))
     with TestClient(app) as c:
         yield c
@@ -217,3 +221,42 @@ def test_dashboard_served(client):
                    "/refresh", "/runs?steps=true", "/tenders", 'method: "DELETE"'):
         assert needle in html, needle
     assert "<script src=" not in html  # no external bundle: one self-contained page
+
+
+def test_settings_api_validates(client):
+    st = client.get("/settings").json()
+    assert st["autoCheck"] is True and st["checkIntervalMin"] >= 1 and "model" in st
+    r = client.put("/settings", json={"checkIntervalMin": 15, "repairCooldownMin": 60})
+    assert r.status_code == 200 and r.json()["checkIntervalMin"] == 15
+    assert client.get("/system").json()["readIntervalMin"] == 15
+    for bad in [{"checkIntervalMin": 0}, {"checkIntervalMin": "ten"}, {"checkIntervalMin": 2.5},
+                {"autoCheck": "yes"}, {"nope": 1}, {}]:
+        assert client.put("/settings", json=bad).status_code == 400, bad
+    assert client.get("/settings").json()["checkIntervalMin"] == 15   # bad updates change nothing
+
+
+def test_scheduler_follows_live_settings(client, mock_base):
+    pid = client.post("/portals", json={"url": f"{mock_base}/ssr/tenders?sched=1"}).json()["id"]
+    wait_state(client, pid, {"serving"})
+    assert client.get(f"/portals/{pid}?full=true").json()["nextCheckAt"]
+    n_runs = len(client.get(f"/portals/{pid}/runs").json())
+    # pause: an overdue portal is not read
+    client.put("/settings", json={"autoCheck": False, "checkIntervalMin": 1})
+    _age_last_read(client, pid)
+    time.sleep(2)
+    assert len(client.get(f"/portals/{pid}/runs").json()) == n_runs
+    assert client.get(f"/portals/{pid}?full=true").json()["nextCheckAt"] is None
+    # resume: the overdue portal is read on the next scheduler tick
+    client.put("/settings", json={"autoCheck": True})
+    end = time.time() + 15
+    while time.time() < end and len(client.get(f"/portals/{pid}/runs").json()) == n_runs:
+        time.sleep(0.3)
+    assert len(client.get(f"/portals/{pid}/runs").json()) > n_runs
+    client.put("/settings", json={"autoCheck": True, "checkIntervalMin": 30})
+
+
+def _age_last_read(client, pid):
+    """Make the portal's last read 2 hours old (reaches the test's DB directly)."""
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(timespec="seconds")
+    _DBREF[0].update_portal(pid, last_read_at=old)

@@ -6,6 +6,27 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def load_dotenv() -> None:
+    """Read KEY=VALUE lines from a `.env` file (cwd, then project root) into the environment.
+    Real environment variables always win. Keeps keys out of the repo (.env is git-ignored)."""
+    for path in (Path.cwd() / ".env", Path(__file__).resolve().parent.parent / ".env"):
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip().removeprefix("export ").strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+        break
+
+
+load_dotenv()
+
+
 def _int(name: str, default: int) -> int:
     try:
         return int(os.environ.get(name, default))
@@ -23,10 +44,11 @@ def _float(name: str, default: float) -> float:
 @dataclass
 class Settings:
     data_dir: Path = field(default_factory=lambda: Path(os.environ.get("DATA_DIR", "./data")))
-    model: str = field(default_factory=lambda: os.environ.get("WATCHTOWER_MODEL", "claude-opus-5-5"))
-    # USD per million tokens for cost accounting (defaults: Claude Opus 5.5 list price)
-    price_in: float = field(default_factory=lambda: _float("MODEL_PRICE_INPUT_PER_MTOK", 4.0))
-    price_out: float = field(default_factory=lambda: _float("MODEL_PRICE_OUTPUT_PER_MTOK", 20.0))
+    # Model provider/model/prices are resolved in llm.py from LLM_* / provider key variables.
+    llm_max_output_tokens: int = field(default_factory=lambda: _int("LLM_MAX_OUTPUT_TOKENS", 8192))
+    llm_timeout: float = field(default_factory=lambda: _float("LLM_TIMEOUT_SEC", 300.0))
+    # characters of compacted page per prompt; lower it for models with a small context window
+    prompt_page_chars: int = field(default_factory=lambda: _int("PROMPT_PAGE_CHARS", 45000))
     read_interval_min: int = field(default_factory=lambda: _int("READ_INTERVAL_MIN", 30))
     repair_cooldown_min: int = field(default_factory=lambda: _int("REPAIR_COOLDOWN_MIN", 120))
     min_request_interval: float = field(default_factory=lambda: _float("MIN_REQUEST_INTERVAL_SEC", 1.05))

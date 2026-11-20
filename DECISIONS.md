@@ -53,9 +53,22 @@ Each entry: context → decision → consequences.
 
 ### ADR-013 Dashboard follows Patterno's visual language (2026-11-20)
 - **Decision:** colours, type and controls follow patterno.de (navy + indigo, Inter, EB Garamond
-  wordmark, pills); no Patterno logo is reproduced. Dark is the default, as on the brand site.
+  wordmark, pills). Dark is the default, as on the brand site.
+- **Update (0.8.0):** at the team's request the header carries the Patterno mark and wordmark
+  ("Patterno | Watchtower", mark taken from patterno.de's own inline SVG) and the mark is the
+  favicon, because Watchtower is built for Patterno's production. Confirm brand use with the
+  organisers before publishing the repository or video beyond the hackathon.
 - **Consequences:** the operator console feels like part of the Patterno product. Web fonts load
   from Google Fonts; without internet the system fonts take over and nothing breaks.
+
+### ADR-014 Any model provider, one adapter (2026-11-20)
+- **Context:** the brief allows any model; the team needs to test without an Anthropic key.
+- **Decision:** Anthropic stays on its SDK; every other provider goes through one OpenAI-compatible
+  HTTP adapter (OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral, Ollama, …). The provider is
+  chosen from whichever key is set; non-Anthropic models must be named explicitly (`LLM_MODEL`) so
+  we never guess a model id. A `.env` file is read for local development.
+- **Consequences:** no new dependency (uses httpx). Recipe quality depends on the model chosen —
+  small or free models may need more fix rounds or fail on hard portals.
 
 ### ADR-009 No LLM-written Python sandbox, no captcha handling (2026-11-20)
 - **Decision:** Skipped, following the brainstorm and the rules. Captchas and logins are detected and reported, never solved.

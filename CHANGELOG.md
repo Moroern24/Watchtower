@@ -12,6 +12,26 @@
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
 
+## [0.9.0] — 2026-11-20 — operator settings
+- Settings dialog: theme System / Dark / Light; automatic checks on/off with interval in minutes
+  (presets 5/15/30/60); wait after a failed model repair; read-only model status.
+- Runtime settings persisted in SQLite (`settings` table), validated, applied live by the scheduler;
+  `GET`/`PUT /settings`; `nextCheckAt` per portal; footer and header show auto-check state.
+- Fixed: the model-repair cooldown now reads the live setting.
+- Tests: settings validation; scheduler pauses and resumes with the live setting.
+
+## [0.8.0] — 2026-11-20 — any model provider
+- Model access is provider-agnostic: Anthropic via SDK, plus one OpenAI-compatible adapter for
+  OpenAI, Gemini, Groq, OpenRouter, DeepSeek, Mistral or any custom endpoint (e.g. Ollama).
+  Provider picked from the key that is set; `LLM_MODEL`, `LLM_PROVIDER`, `LLM_BASE_URL`,
+  `LLM_API_KEY`, `LLM_MAX_OUTPUT_TOKENS`, `PROMPT_PAGE_CHARS`.
+- JSON mode with fallback, back-off on 429/5xx, `max_completion_tokens` fallback, clear errors.
+- `.env` file support for local keys (git-ignored). `/system` reports provider, model and problem;
+  the dashboard shows which model is in use or why none is.
+- Tests: adapter against a fake OpenAI-compatible server.
+- Dashboard header shows the Patterno mark and wordmark ("Patterno | Watchtower"); the mark is
+  also the favicon and the page title is "Patterno Watchtower".
+
 ## [0.7.0] — 2026-11-20 — calmer dashboard
 - Decluttered: one verdict in the header, state cards show only label + count, list grouped into
   Needs attention / Attaching / Working with reasons only for problems, row actions on hover,

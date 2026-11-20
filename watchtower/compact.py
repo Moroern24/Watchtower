@@ -89,8 +89,10 @@ def _render(el, out: list[str], depth: int, budget: list[int], text_limit: int,
         out.append(f"{ind}{tail}")
 
 
-def skeleton(html: str, url: str, max_chars: int = 45000, text_limit: int = 100,
+def skeleton(html: str, url: str, max_chars: int | None = None, text_limit: int = 100,
              keep_similar: int = 3) -> str:
+    from .config import settings
+    max_chars = max_chars or settings.prompt_page_chars
     doc = parse_html(html, url)
     for bad in doc.xpath("//comment()"):
         parent = bad.getparent()

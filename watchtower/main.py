@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from . import browser
 from .config import settings
 from .db import DB
-from .llm import has_key
+from . import llm, prefs
 from .orchestrator import Orchestrator
 from .pipeline import public_tender
 
@@ -46,8 +46,10 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         e = {"id": p["id"], "url": p["url"], "state": p["state"], "reason": p["reason"],
              "tenderCount": D().tender_count(p["id"]), "lastSuccessAt": p["last_success_at"]}
         if full:
+            active = O().active_run(p["id"])
             e.update(openCount=D().open_count(p["id"]), lastReadAt=p["last_read_at"], createdAt=p["created_at"],
-                     recipeVersion=p["recipe_version"], activeRunId=O().active_run(p["id"]),
+                     recipeVersion=p["recipe_version"], activeRunId=active,
+                     nextCheckAt=prefs.next_check_at(p, prefs.get(D()), active is not None),
                      modelUsage=D().portal_cost(p["id"]), recentRuns=D().recent_runs(p["id"]))
         return e
 
@@ -160,9 +162,28 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
     def system():
         portals = D().list_portals()
         cost = sum(D().portal_cost(p["id"])["costUsd"] for p in portals)
-        return {"model": settings.model, "modelKeyConfigured": has_key(),
+        st = llm.status()
+        return {"model": st["model"], "llmProvider": st["provider"],
+                "modelKeyConfigured": st["configured"], "modelProblem": st["problem"],
                 "browserAvailable": browser.available(),
-                "readIntervalMin": settings.read_interval_min, "totalModelCostUsd": round(cost, 4)}
+                "readIntervalMin": prefs.get(D())["checkIntervalMin"],
+                "autoCheck": prefs.get(D())["autoCheck"], "totalModelCostUsd": round(cost, 4)}
+
+    @app.get("/settings")
+    def get_settings():
+        return {**prefs.get(D()), "model": llm.status()}
+
+    @app.put("/settings")
+    async def put_settings(request: Request):
+        try:
+            body = await request.json()
+        except (ValueError, json.JSONDecodeError):
+            body = None
+        try:
+            new = prefs.update(D(), body)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+        return {**new, "model": llm.status()}
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard():
