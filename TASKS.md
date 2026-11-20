@@ -22,5 +22,6 @@ Status: ☐ todo · ◐ in progress · ☑ done (tests green)
 | T16 | End-to-end verification in browser | P1 | all | QA | Dashboard checked visually | ☑ (demo learner) |
 | T18 | Operator pass #1 fixes (C1–C3, M1, M2, M4–M8, minors) | P0 | T09 | Lead | Regression tests for each | ☑ |
 | T20 | Operator dashboard v2 (filters, actions, details, empty/error states) | P1 | T14 | UX | All flows checked in browser | ☑ |
+| T21 | Dashboard v3: master–detail per operator brief | P1 | T20 | UX | Flows, null/404 states, 375–1440 px checked in browser | ☑ |
 | T19 | M3 assumed deadline time flag; M9 "list ok, docs blocked" state | P2 | – | Lead | Decided with Patterno contract | ☐ |
 | T17 | Real-portal test set (≥4 countries, 3 software pkgs) | P1 | T11 | QA | Live results logged | ☐ (needs API key) |

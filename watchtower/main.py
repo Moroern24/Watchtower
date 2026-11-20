@@ -48,7 +48,7 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         if full:
             e.update(openCount=D().open_count(p["id"]), lastReadAt=p["last_read_at"], createdAt=p["created_at"],
                      recipeVersion=p["recipe_version"], activeRunId=O().active_run(p["id"]),
-                     modelUsage=D().portal_cost(p["id"]))
+                     modelUsage=D().portal_cost(p["id"]), recentRuns=D().recent_runs(p["id"]))
         return e
 
     def get_or_404(pid: str) -> dict:

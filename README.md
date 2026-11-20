@@ -46,14 +46,19 @@ curl -XPOST localhost:8080/portals -H 'content-type: application/json' -d '{"url
    A portal that needs a login or captcha for its list or its documents is reported as `failed` and the reason says so. A captcha widget on a page whose documents still download is fine.
 6. **Politeness.** Every request goes through a per-host limiter that allows at most 1 request per second: pages, APIs, downloads and browser sessions. There are no logins and no captcha solving.
 
-The dashboard (`/`) is the operator's morning view: one self-contained HTML page, no build step.
-- **Summary:** portal total and a counter per state (click to filter), open tenders, data freshness.
-- **Add portal:** `POST /portals` with clear feedback (accepted / already monitored / rejected).
-- **Portal table:** filters by state, search by URL or id, problems first; full reason text,
-  open/held tender counts, last success, and Refresh / Details / Delete (with confirmation).
-- **Details:** runs (`read`/`repair`, start, end or "still running", result, step log),
-  tenders (status filter, buyer, deadline in the portal's local time with offset, document
-  downloads with sizes) and the learned recipe (read-only — no manual steering).
+The dashboard (`/`) is the operator's morning view — one self-contained HTML page, no build step,
+laid out master–detail (patterns from Better Stack / Uptime Kuma status consoles and Temporal-style
+run histories):
+- **Header:** one-line verdict ("1 portal needs a person · 1 healing"), compact add-portal form
+  (`POST /portals` → accepted / already monitored / rejected with the 400 reason), data freshness.
+- **Summary strip:** all portals + Failed, Healing, Integrating, Serving with what each state means;
+  click a card to filter.
+- **Master (left ~60%):** search by URL or id, problems first; state badge, full reason, recent-runs
+  strip, tenders (held / open), last success (or "never"), Refresh and Delete (with confirmation).
+- **Detail (right ~40%):** reason, state meaning, key stats, a larger run-history strip and two
+  tabs — **Runs** (timeline of `read`/`repair` with start, end or "still running", result, step log)
+  and **Tenders** (status filter, buyer, deadline in the portal's local time with offset, document
+  downloads with sizes). No manual steering of repairs.
 
 Code map: `PROJECT_INSTRUCTIONS.md`, `ARCHITECTURE.md`, `DECISIONS.md`.
 

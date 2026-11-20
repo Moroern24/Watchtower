@@ -12,6 +12,14 @@
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
 
+## [0.5.0] — 2026-11-20 — master–detail dashboard
+- Dashboard redesigned after Better Stack / Uptime Kuma / Vercel status and Temporal run views:
+  header verdict + compact add form, 5-card state strip (filters), master list with per-portal
+  recent-runs strip, sticky detail panel with Runs timeline and Tenders tabs; auto-opens the most
+  urgent portal; state colours scoped to badges; phone and tablet layouts.
+- API: `GET /portals?full=true` entries carry `recentRuns` (dashboard only; the contract fields of
+  `GET /portals` are unchanged).
+
 ## [0.4.0] — 2026-11-20 — operator dashboard
 - Rebuilt `GET /`: state KPIs that filter, state legend, add-portal feedback (201 / existing /
   400), state chips + search, per-row Refresh/Details/Delete, detail panel with Runs, Tenders

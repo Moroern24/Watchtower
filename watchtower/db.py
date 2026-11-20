@@ -179,6 +179,14 @@ class DB:
                       "LIMIT ?", (pid, limit))
         return [dict(r) for r in rows]
 
+    def recent_runs(self, pid: str, n: int = 16) -> list[dict]:
+        """Last n runs, oldest first (for the dashboard's run-history strip)."""
+        rows = self.q("SELECT id, kind, result, started_at, finished_at FROM runs WHERE portal_id=? "
+                      "ORDER BY started_at DESC, rowid DESC LIMIT ?", (pid, n))
+        return [{"id": r["id"], "kind": r["kind"], "result": r["result"],
+                 "startedAt": r["started_at"], "finishedAt": r["finished_at"]}
+                for r in reversed(rows)]
+
     def portal_cost(self, pid: str) -> dict:
         r = self.q("SELECT COALESCE(SUM(cost_usd),0) c, COALESCE(SUM(llm_calls),0) n, "
                    "COALESCE(SUM(input_tokens),0) i, COALESCE(SUM(output_tokens),0) o "
