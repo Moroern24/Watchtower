@@ -70,5 +70,17 @@ Each entry: context → decision → consequences.
 - **Consequences:** no new dependency (uses httpx). Recipe quality depends on the model chosen —
   small or free models may need more fix rounds or fail on hard portals.
 
+### ADR-015 Security hardening after review (2026-11-21)
+- **Context:** a review found a script-link XSS (portal `javascript:` URLs reached the dashboard),
+  SSRF gaps (metadata addresses reachable, redirects unchecked), CSRF on `POST /portals`, active
+  document types served inline-capable, unbounded model-written regexes and Google Fonts (GDPR).
+- **Decision:** only `http(s)` URLs leave the system; metadata/link-local addresses are always
+  refused (first request, redirects, browser), private networks remain a switch; cross-site writes
+  are refused by `Origin`/`Sec-Fetch-Site`; documents are sandboxed downloads and active types are
+  `application/octet-stream`; recipe regexes are vetted; fonts are self-hosted or system fonts.
+- **Kept as known limits:** no authentication (contract), no global disk quota, Chromium without
+  sandbox while learning, partial DNS-rebinding coverage — documented in README → Security.
+- **Tests:** `tests/test_security.py`.
+
 ### ADR-009 No LLM-written Python sandbox, no captcha handling (2026-11-20)
 - **Decision:** Skipped, following the brainstorm and the rules. Captchas and logins are detected and reported, never solved.

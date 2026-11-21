@@ -188,6 +188,24 @@ def json_path(data: Any, path: str | None):
 
 # ------------------------------------------------------------------ FieldSpec
 
+MAX_REGEX_LEN = 300
+MAX_REGEX_INPUT = 20000
+# a quantified group that itself contains a quantifier, e.g. (a+)+ or (\w*x)* — catastrophic
+# backtracking risk. Regexes come from the model (and indirectly from portal pages).
+_NESTED_QUANT = re.compile(r"\((?:[^()\\]|\\.)*(?:[+*]|\{\d*,?\d*\})(?:[^()\\]|\\.)*\)\s*(?:[+*]|\{\d*,\d*\})")
+
+
+def check_regex(pattern: str) -> None:
+    if len(pattern) > MAX_REGEX_LEN:
+        raise SpecError(f"Regex longer than {MAX_REGEX_LEN} characters")
+    if _NESTED_QUANT.search(pattern):
+        raise SpecError(f"Regex {pattern!r} nests quantifiers (catastrophic backtracking risk)")
+    try:
+        re.compile(pattern)
+    except re.error as e:
+        raise SpecError(f"Bad regex {pattern!r}: {e}") from e
+
+
 def apply_regex(value, pattern: str | None):
     if not pattern or value is None:
         return value
@@ -195,7 +213,8 @@ def apply_regex(value, pattern: str | None):
         out = [apply_regex(v, pattern) for v in value]
         return [v for v in out if v is not None]
     try:
-        m = re.search(pattern, str(value), re.I | re.S)
+        check_regex(pattern)
+        m = re.search(pattern, str(value)[:MAX_REGEX_INPUT], re.I | re.S)
     except re.error as e:
         raise SpecError(f"Bad regex {pattern!r}: {e}") from e
     if not m:

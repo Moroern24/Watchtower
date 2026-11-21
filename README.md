@@ -107,8 +107,40 @@ root (git-ignored); real environment variables take precedence.
 | `MIN_REQUEST_INTERVAL_SEC` | `1.05` | Per-host request spacing |
 | `MAX_CONCURRENT_RUNS` | `8` | Portals processed in parallel |
 | `USE_BROWSER` | `1` | Use headless Chromium while learning JS portals |
-| `BLOCK_PRIVATE_NETWORKS` | `0` | `1` refuses private or loopback targets (SSRF guard) |
+| `BLOCK_PRIVATE_NETWORKS` | `0` | `1` also refuses private and loopback targets (cloud metadata and link-local addresses are always refused) |
 | `DATA_DIR` | `/data` | SQLite database and document store |
+
+## Security
+
+What Watchtower does to stay safe while reading untrusted portals:
+- **Untrusted data stays data.** The model only writes a declarative recipe (schema-checked, no
+  code execution); page text is never treated as instructions. Regexes in recipes are length-capped,
+  checked for nested quantifiers and run on at most 20k characters.
+- **Links:** only absolute `http(s)` URLs are delivered or rendered; `javascript:`/`data:` links
+  from a portal become `null`. The dashboard escapes all portal text.
+- **SSRF:** cloud metadata services and link-local/special addresses are always refused — for the
+  first request, every redirect hop and the learning browser. `BLOCK_PRIVATE_NETWORKS=1` also
+  refuses private networks (off by default so portals on internal test hosts still work).
+- **Cross-site requests:** writes (`POST`/`PUT`/`PATCH`/`DELETE`) carrying a foreign `Origin`, or
+  `Sec-Fetch-Site: cross-site`, are refused with 403. API clients that send no `Origin` are unaffected.
+- **Documents** are served by opaque id as downloads (`Content-Disposition: attachment`, `nosniff`,
+  `CSP: sandbox`); HTML/SVG/XML/JS are always sent as `application/octet-stream`. ZIPs are unpacked
+  with size and ratio limits into content-addressed storage (no path traversal).
+- **Keys** only come from the environment or a git-ignored `.env`; the API and dashboard never show them.
+- **No third-party requests from the dashboard** (no CDN fonts — GDPR); fonts are self-hosted when
+  present in `watchtower/static/fonts/`, otherwise system fonts are used.
+- The container runs as a non-root user.
+
+Known limits — deploy accordingly:
+- **No authentication** (required by the challenge's API contract). Anyone who can reach port 8080
+  can add, delete and refresh portals and change settings. In production put Watchtower behind a
+  private network or an authenticating reverse proxy.
+- **Disk:** files over 250 MB are skipped, but there is no total storage quota; size the `/data`
+  volume and monitor it.
+- **Headless Chromium** runs with `--no-sandbox` (needed in containers) while learning JavaScript
+  portals; it is short-lived, non-root and SSRF-guarded. Set `USE_BROWSER=0` to disable it.
+- **DNS rebinding:** host names are checked when resolved; a name that changes its address between
+  the check and the connection is not fully covered. The base image is pinned by tag, not by digest.
 
 ## What one portal costs in model usage
 

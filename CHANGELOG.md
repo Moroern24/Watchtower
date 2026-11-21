@@ -12,6 +12,16 @@
 - Fixed: per-host lock leaked when a request was cancelled during its politeness wait.
 - Tests: 26 passing (no API key needed).
 
+## [0.10.0] — 2026-11-21 — security hardening
+- Script links: only absolute http(s) tender URLs are kept and rendered as links.
+- SSRF: cloud metadata and link-local addresses always refused, every redirect hop and the learning
+  browser checked, `POST /portals` answers 400 for such targets.
+- CSRF: cross-site writes (foreign `Origin` / `Sec-Fetch-Site: cross-site`) refused with 403.
+- Documents: sandboxed downloads (`CSP: sandbox`); HTML/SVG/XML/JS served as octet-stream.
+- Recipes: regexes length-capped, nested quantifiers rejected, input capped at 20k characters.
+- Dashboard: no Google Fonts; self-hosted fonts from `watchtower/static/fonts/` when present.
+- README → Security (measures and known limits); ADR-015; `tests/test_security.py` (35 tests).
+
 ## [0.9.0] — 2026-11-20 — operator settings
 - Settings dialog: theme System / Dark / Light; automatic checks on/off with interval in minutes
   (presets 5/15/30/60); wait after a failed model repair; read-only model status.

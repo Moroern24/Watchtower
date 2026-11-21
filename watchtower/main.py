@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -22,6 +23,18 @@ from .pipeline import public_tender
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 STATIC = Path(__file__).parent / "static"
+
+# Types a browser could execute or render as a page. Tender documents of these types are served
+# as plain bytes, whatever the portal claimed.
+ACTIVE_TYPES = ("html", "xhtml", "svg", "xml", "javascript", "ecmascript", "x-shockwave", "pdf+xml")
+ACTIVE_EXT = (".html", ".htm", ".xhtml", ".svg", ".svgz", ".xml", ".xsl", ".js", ".mjs", ".swf")
+
+
+def safe_media_type(mime: str | None, name: str) -> str:
+    m = (mime or "").split(";")[0].strip().lower()
+    if not m or any(t in m for t in ACTIVE_TYPES) or name.lower().endswith(ACTIVE_EXT):
+        return "application/octet-stream"
+    return m
 
 
 def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
@@ -171,8 +184,10 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
             raise HTTPException(404, "Unknown file")
         name = (f.get("name") or fid).rsplit("/", 1)[-1]
         ascii_name = name.encode("ascii", "replace").decode().replace('"', "_").replace("?", "_")
-        return FileResponse(path, media_type=f["mime"] or "application/octet-stream",
+        return FileResponse(path, media_type=safe_media_type(f["mime"], name),
                             headers={"X-Content-Type-Options": "nosniff",
+                                     # a downloaded document may never run as a page on our origin
+                                     "Content-Security-Policy": "default-src 'none'; sandbox",
                                      "Content-Disposition": f'attachment; filename="{ascii_name}"; '
                                                             f"filename*=UTF-8''{quote(name)}"})
 
@@ -205,7 +220,22 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard():
-        return HTMLResponse((STATIC / "dashboard.html").read_text(encoding="utf-8"))
+        html = (STATIC / "dashboard.html").read_text(encoding="utf-8")
+        if (STATIC / "fonts" / "fonts.css").exists():   # self-hosted Inter / EB Garamond, no CDN
+            html = html.replace("<!--FONTS-->", '<link rel="stylesheet" href="/static/fonts/fonts.css">', 1)
+        return HTMLResponse(html, headers={"X-Content-Type-Options": "nosniff",
+                                           "Referrer-Policy": "same-origin"})
+
+    @app.get("/static/fonts/{name}")
+    def font(name: str):
+        if not re.fullmatch(r"[A-Za-z0-9._-]+\.(woff2|css)", name):
+            raise HTTPException(404, "Unknown file")
+        path = STATIC / "fonts" / name
+        if not path.is_file():
+            raise HTTPException(404, "Unknown file")
+        return FileResponse(path, media_type="text/css" if name.endswith(".css") else "font/woff2",
+                            headers={"Cache-Control": "public, max-age=604800",
+                                     "X-Content-Type-Options": "nosniff"})
 
     @app.exception_handler(HTTPException)
     async def http_exc(request, exc: HTTPException):

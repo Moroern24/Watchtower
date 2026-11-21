@@ -11,7 +11,7 @@ from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit, parse_qsl
 from pydantic import BaseModel, Field, ValidationError
 
 from . import normalize as N
-from .extract import SpecError, eval_spec, json_path, parse_html, select
+from .extract import SpecError, check_regex, eval_spec, json_path, parse_html, select
 from .fetcher import Fetcher, Page, PortalError
 
 log = logging.getLogger("watchtower.recipe")
@@ -99,6 +99,16 @@ def parse_recipe(data: dict) -> Recipe:
         r.detail.fields = {k: v for k, v in r.detail.fields.items() if ok(k)}
     if not r.list.url.startswith(("http://", "https://")):
         raise PortalError("llm", "Recipe list.url must be absolute http(s)")
+    # reject dangerous regexes up front, so the model gets the error and can fix the recipe
+    specs = [*r.list.fields.values(), *(r.detail.fields.values() if r.detail else [])]
+    if r.documents and r.documents.pageLink:
+        specs.append(r.documents.pageLink)
+    for spec in specs:
+        if spec.regex:
+            try:
+                check_regex(spec.regex)
+            except SpecError as e:
+                raise PortalError("llm", f"Recipe regex rejected: {e}") from e
     return r
 
 
