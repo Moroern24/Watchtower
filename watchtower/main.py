@@ -15,6 +15,7 @@ from . import browser
 from .config import settings
 from .db import DB
 from . import llm, prefs
+from .fetcher import PortalError, check_target
 from .orchestrator import Orchestrator
 from .pipeline import public_tender
 
@@ -35,6 +36,19 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         await state["orch"].stop()
 
     app = FastAPI(title="Watchtower", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def same_origin_writes(request: Request, call_next):
+        """CSRF guard: browsers send Origin on cross-site writes; API clients (curl, Patterno)
+        send none and are unaffected. A write from another site's page is refused."""
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            origin = request.headers.get("origin")
+            if origin and origin != "null":
+                if urlsplit(origin).netloc.lower() != request.headers.get("host", "").lower():
+                    return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
+            elif request.headers.get("sec-fetch-site") == "cross-site":
+                return JSONResponse({"error": "Cross-site request refused"}, status_code=403)
+        return await call_next(request)
 
     def D() -> DB:
         return state["db"]
@@ -78,6 +92,10 @@ def create_app(db: DB | None = None, orchestrator_factory=None) -> FastAPI:
         if parts.scheme not in ("http", "https") or not host_ok:
             return JSONResponse({"error": "url must be an http(s) address with a host"},
                                 status_code=400)
+        try:
+            await check_target(parts.geturl())     # e.g. cloud metadata addresses → 400
+        except PortalError as e:
+            return JSONResponse({"error": e.message}, status_code=400)
         pid, _ = O().add_portal(url)
         return {"id": pid}
 

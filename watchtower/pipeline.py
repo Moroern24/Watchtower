@@ -99,6 +99,7 @@ def public_tender(data: dict, last_changed_at: str) -> dict:
     for req in ("id", "url", "title", "buyerName", "publicationDate", "submissionDeadline",
                 "status", "documents"):
         out.setdefault(req, [] if req == "documents" else None)
+    out["url"] = N.http_url(out.get("url"))   # also guards rows stored before this check existed
     out["lastChangedAt"] = last_changed_at
     return out
 

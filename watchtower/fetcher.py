@@ -113,18 +113,54 @@ class HostLimiter:
 limiter = HostLimiter(settings.min_request_interval)
 
 
-def _check_ssrf(url: str) -> None:
-    if not settings.block_private_networks:
-        return
-    host = urlsplit(url).hostname or ""
+# Never reachable from Watchtower, whatever the settings: cloud metadata services and other
+# link-local / special addresses (they can hand out credentials).
+BLOCKED_HOSTNAMES = {"metadata.google.internal", "metadata", "metadata.goog",
+                     "instance-data", "instance-data.ec2.internal"}
+BLOCKED_IPS = {ipaddress.ip_address(a) for a in
+               ("169.254.169.254", "169.254.170.2", "100.100.100.200", "fd00:ec2::254")}
+
+
+def _blocked_ip(ip: ipaddress._BaseAddress) -> str | None:
+    if getattr(ip, "ipv4_mapped", None):
+        ip = ip.ipv4_mapped
+    if ip in BLOCKED_IPS or ip.is_link_local:
+        return "cloud metadata / link-local address"
+    if ip.is_multicast or ip.is_unspecified or ip.is_reserved:
+        return "special-purpose address"
+    if settings.block_private_networks and (ip.is_private or ip.is_loopback):
+        return "private network address (BLOCK_PRIVATE_NETWORKS=1)"
+    return None
+
+
+async def check_target(url: str) -> None:
+    """SSRF guard, run for the first request and for every redirect hop."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        raise PortalError("fetch", f"Blocked non-http URL {url[:80]!r}")
+    host = (parts.hostname or "").rstrip(".").lower()
+    if not host or host in BLOCKED_HOSTNAMES:
+        raise PortalError("fetch", f"Blocked address {host or url[:80]!r} (cloud metadata service)")
     try:
-        infos = socket.getaddrinfo(host, None)
-    except socket.gaierror as e:
-        raise PortalError("fetch", f"Cannot resolve host {host}: {e}")
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-            raise PortalError("fetch", f"Blocked private address {ip} for {host}")
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        ips = [literal]
+    else:
+        try:
+            infos = await asyncio.get_running_loop().getaddrinfo(host, None)
+        except socket.gaierror:
+            return  # the request itself will fail with a normal connection error
+        ips = [ipaddress.ip_address(i[4][0].split("%")[0]) for i in infos]
+    for ip in ips:
+        why = _blocked_ip(ip)
+        if why:
+            raise PortalError("fetch", f"Blocked {why}: {host} → {ip}")
+
+
+async def _guard_redirect_hop(request: httpx.Request) -> None:
+    await check_target(str(request.url))
 
 
 class Fetcher:
@@ -136,6 +172,7 @@ class Fetcher:
         self._own = client is None
         self.client = client or httpx.AsyncClient(
             follow_redirects=True, timeout=settings.http_timeout,
+            event_hooks={"request": [_guard_redirect_hop]},   # checks every redirect target too
             headers={"User-Agent": settings.user_agent,
                      "Accept-Language": "de,en;q=0.8,fr;q=0.6,es;q=0.5,nl;q=0.5,pl;q=0.5"},
             verify=True)
@@ -151,17 +188,17 @@ class Fetcher:
         if self._own:
             await self.client.aclose()
 
-    def _guard(self, url: str) -> None:
+    async def _guard(self, url: str) -> None:
         if self.cancel_check():
             raise Cancelled()
         if not url.startswith(("http://", "https://")):
             raise PortalError("fetch", f"Unsupported URL {url!r}")
-        _check_ssrf(url)
+        await check_target(url)
 
     async def get(self, url: str, *, method: str = "GET", params: dict | None = None,
                   data=None, json_body=None, headers: dict | None = None,
                   max_bytes: int = 15 * 1024 * 1024) -> Page:
-        self._guard(url)
+        await self._guard(url)
         lock = await limiter.wait(url)
         t0 = time.monotonic()
         try:
@@ -192,7 +229,7 @@ class Fetcher:
                        headers: dict | None = None) -> dict:
         """Stream to a temp file. Returns dict(path, sha256, size, content_type,
         filename_hint, final_url, too_large, status, head(bytes))."""
-        self._guard(url)
+        await self._guard(url)
         lock = await limiter.wait(url)
         try:
             self.requests += 1

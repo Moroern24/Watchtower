@@ -7,7 +7,7 @@ import json
 import logging
 
 from .config import settings
-from .fetcher import limiter
+from .fetcher import PortalError, check_target, limiter
 
 log = logging.getLogger("watchtower.browser")
 _LOCK = asyncio.Lock()  # one browser session at a time (memory + politeness)
@@ -44,8 +44,13 @@ async def capture(url: str, wait_ms: int = 4000, max_responses: int = 25) -> dic
                         if route.request.resource_type in ("image", "font", "media",
                                                            "stylesheet"):
                             await route.abort()
-                        else:
-                            await route.continue_()
+                            return
+                        try:  # same SSRF guard as plain HTTP reads, for every page request
+                            await check_target(route.request.url)
+                        except PortalError:
+                            await route.abort()
+                            return
+                        await route.continue_()
                     await page.route("**/*", block)
 
                     async def on_response(resp):

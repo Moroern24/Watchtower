@@ -318,6 +318,17 @@ def tender_status(raw_status, deadline_iso: str | None, listed: bool,
     return "open"
 
 
+def http_url(v) -> str | None:
+    """Only absolute http(s) URLs leave Watchtower. Anything else (javascript:, data:, relative
+    leftovers) becomes None — a portal page must never be able to inject a script link."""
+    s = clean_text(v)
+    if not s:
+        return None
+    s = "".join(ch for ch in s if ch >= " ")          # strip control characters
+    m = re.match(r"^\s*(https?)://[^\s/?#]+", s, re.I)
+    return s.strip() if m else None
+
+
 def looks_like_date_or_number(s: str | None) -> bool:
     if not s:
         return False

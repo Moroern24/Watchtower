@@ -355,7 +355,7 @@ def normalize_item(recipe: Recipe, f: dict) -> dict:
     url = f.get("url")
     t: dict[str, Any] = {
         "id": N.clean_text(f.get("id")),
-        "url": N.clean_text(url) if url else None,
+        "url": N.http_url(url),
         "title": N.clean_text(f.get("title")),
         "buyerName": N.clean_text(f.get("buyerName")),
         "publicationDate": N.to_date(f.get("publicationDate"), fm, tz, dfirst),

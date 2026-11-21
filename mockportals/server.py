@@ -113,6 +113,12 @@ def reset():
     return {"ok": True}
 
 
+@app.get("/control/redirect")
+def redirect_to(to: str):
+    """Open redirect used by the SSRF tests (a portal redirecting to an internal address)."""
+    return RedirectResponse(to)
+
+
 @app.get("/control/hits")
 def hits():
     return {"hits": [[t, p] for t, p in STATE["hits"]]}
