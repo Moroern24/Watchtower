@@ -27,6 +27,14 @@ def test_provider_selection(monkeypatch):
     assert llm.provider() is None and not llm.has_key()
     assert "No model key" in llm.status()["problem"]
 
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_MODEL", "some-model")
+    assert llm.status() == {"provider": "gemini", "model": "some-model", "configured": False,
+                            "problem": "gemini: no API key"}
+    assert not llm.has_key()
+    monkeypatch.delenv("LLM_PROVIDER")
+    monkeypatch.delenv("LLM_MODEL")
+
     monkeypatch.setenv("GEMINI_API_KEY", "g-key")
     p = llm.provider()
     assert p.name == "gemini" and "generativelanguage.googleapis.com" in p.base_url

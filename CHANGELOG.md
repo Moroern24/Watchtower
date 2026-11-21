@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Unreleased
+- Configure Gemini through the provider-agnostic adapter with `GEMINI_API_KEY` and `LLM_MODEL`.
+- Install libatomic1 before Playwright so the linux/amd64 Docker image builds and Chromium starts.
+- Preserve the last good tender snapshot when document access is blocked, including during repair.
+- Commit validated tender snapshots atomically, rolling back all changes on a storage error.
+- Keep the French mock portal's deadline format intact on Windows.
+
 ## [0.1.0] — 2026-11-20
 - Planning: PROJECT_INSTRUCTIONS.md, ARCHITECTURE.md, DECISIONS.md, TASKS.md.
 

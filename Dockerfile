@@ -8,7 +8,8 @@ WORKDIR /app
 COPY requirements.txt .
 # lxml / pydantic ship manylinux wheels: no compiler needed.
 # Chromium (+ its system libs) is only used while learning JavaScript portals.
-RUN pip install -r requirements.txt \
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+ && pip install -r requirements.txt \
  && python -m playwright install --with-deps chromium \
  && rm -rf /var/lib/apt/lists/*
 

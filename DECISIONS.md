@@ -9,7 +9,7 @@ Each entry: context → decision → consequences.
 
 ### ADR-002 LLM only at learn, verify and repair time (2026-11-20)
 - **Decision:** Regular reads make 0 model calls.
-- **Consequences:** The cost per portal is a one-off of about $0.3–1 plus repairs. Notice must therefore be deterministic (validation + drift).
+- **Consequences:** Model cost is limited to setup and repairs. Notice must therefore be deterministic (validation + drift).
 
 ### ADR-003 Deterministic normalization (2026-11-20)
 - **Decision:** The LLM says where a value is and its format or timezone. Code converts it. A value that cannot be parsed becomes null.
@@ -84,3 +84,8 @@ Each entry: context → decision → consequences.
 
 ### ADR-009 No LLM-written Python sandbox, no captcha handling (2026-11-20)
 - **Decision:** Skipped, following the brainstorm and the rules. Captchas and logins are detected and reported, never solved.
+
+### ADR-016 Keep a validated snapshot intact when writes fail (2026-11-21)
+- **Decision:** Tender snapshot writes run in one SQLite transaction. If document delivery is
+  blocked during a read or repair, keep the previously validated snapshot and report `failed`.
+- **Consequences:** Operators retain the last correct tenders until a complete read succeeds.

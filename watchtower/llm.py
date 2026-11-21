@@ -49,8 +49,8 @@ class Provider:
 
     @property
     def ready(self) -> bool:
-        return bool(self.model) and (bool(self.api_key) or self.kind == "openai" and
-                                     bool(self.base_url))
+        return bool(self.model) and (bool(self.api_key) or
+                                     self.name == "custom" and bool(self.base_url))
 
     @property
     def problem(self) -> str | None:
@@ -92,7 +92,7 @@ def provider() -> Provider | None:
             continue
         key = _env(key_var, "ANTHROPIC_AUTH_TOKEN") if name == "anthropic" else \
             _env(key_var) or (_env("LLM_API_KEY") if forced == name else None)
-        if not key:
+        if not key and forced != name:
             continue
         if name == "anthropic":
             return Provider(name, "anthropic", None, key, model or ANTHROPIC_DEFAULT_MODEL,

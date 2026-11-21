@@ -97,7 +97,7 @@ Nobody may help it while it runs.
 | HTTP client | httpx (async) | HTTP/1.1+2, streaming downloads, cookies |
 | HTML parsing | lxml + cssselect | Fast, CSS and XPath, tolerant of broken HTML |
 | Dates | python-dateutil + zoneinfo/tzdata | Local time → offset; no LLM in the read path |
-| LLM | Anthropic SDK, `claude-opus-5-5` (env `WATCHTOWER_MODEL`) | Structured JSON output for recipes; used only at learn and repair time |
+| LLM | Provider-agnostic adapter (Anthropic SDK or OpenAI-compatible Gemini API) | JSON output for recipes; used only at learn and repair time |
 | JS portals | Playwright + Chromium (**optional** at runtime) | Captures the XHR/JSON behind single-page apps during learning. Regular reads hit the JSON API directly |
 | Storage | SQLite (WAL) + content-addressed files | No external services, a single container |
 | Dashboard | One static HTML file + vanilla JS polling the API | No build step |
@@ -161,7 +161,7 @@ tests/                   # pytest suites
 |---|---|---|---|---|
 | Lead / Architect (main session) | Planning, docs, integration, reviews | Plan agent, `code-review`, `simplify` | `*.md`, `main.py`, `orchestrator.py` | Working integrated system |
 | Extraction Engineer | Recipe DSL, executor, normalizers | `run`, pytest | `recipe.py`, `extract.py`, `normalize.py` | Deterministic reads + tests |
-| LLM Engineer | Prompts, learner, repair, cost | `claude-api` skill | `llm.py`, `learner.py`, `compact.py`, `browser.py` | Recipe learning with JSON schema output |
+| LLM Engineer | Prompts, learner, repair, cost | Provider-agnostic adapter | `llm.py`, `learner.py`, `compact.py`, `browser.py` | Recipe learning with JSON output |
 | Reliability Engineer | Fetcher, rate limits, documents, validation | pytest | `fetcher.py`, `documents.py`, `validate.py`, `blockers.py` | Polite, safe I/O; notice logic |
 | QA Engineer | Mock portals, contract tests | pytest, `run` | `mockportals/`, `tests/` | Green test suite |
 | UX Engineer | Dashboard | `built-in-browser` for checks | `static/dashboard.html` | Clear operator view |
@@ -196,7 +196,7 @@ Rules for agents:
   - Unit tests for normalizers and extract.
   - Integration tests that run the recipe executor against the mock portals.
   - API contract tests (status codes, idempotency, refresh runId, delete).
-  - The LLM is mocked in tests through recorded or hand-written recipes. A live-LLM test runs only when `ANTHROPIC_API_KEY` is set.
+  - The LLM is mocked in tests through recorded or hand-written recipes. Live Gemini calls require `GEMINI_API_KEY`.
 - **Security:**
   - Portal content is untrusted. LLM output must validate against the Recipe schema.
   - Never execute generated code.

@@ -180,8 +180,8 @@ class Orchestrator:
                 self._set_state(pid, "integrating", "Learning how to read this portal")
                 ctx.log(f"Attaching {portal['url']}")
                 if not self.llm_available():
-                    return self._fail(ctx, "Cannot learn a new portal: no model key configured "
-                                      "(ANTHROPIC_API_KEY)")
+                    return self._fail(ctx, "Cannot learn a new portal: no model configured; "
+                                      "set a provider API key and LLM_MODEL")
                 try:
                     recipe_d = await self._learn(ctx, portal, fetcher, repair_of=None, problems=[])
                 except PortalError as e:
@@ -236,6 +236,20 @@ class Orchestrator:
         res = await execute(self.db, pid, recipe, fetcher, _StepSink(ctx), settings.max_tenders,
                             previous=self.db.get_tenders(pid))
         tenders = res.tenders
+        blocked_reason = None
+        if res.doc_tenders_with_links and res.doc_blocked and res.doc_tenders_with_files == 0:
+            kind = next(iter(res.doc_blocked))
+            what = {"login": "require a login", "captcha": "require solving a captcha",
+                    "forbidden": "are refused by the server (HTTP 403 — firewall, rate limit "
+                                 "or access restriction)"}.get(kind, f"are blocked ({kind})")
+            n_open = sum(1 for t in tenders if t.get("status") == "open")
+            blocked_reason = (f"Tender list readable ({len(tenders)} tenders, {n_open} open) but "
+                              f"the documents {what}; cannot deliver documents")
+            if good_count:
+                self.db.update_portal(pid, state="failed", reason=blocked_reason,
+                                      hints=json.dumps({"docsBlocked": kind}))
+                ctx.log(blocked_reason)
+                return False, [blocked_reason], len(tenders)
         ok, problems, warnings = validate.check(
             tenders, None if first else good_profile, good_count, first,
             field_drift_is_warning=repair_mode)
@@ -253,18 +267,12 @@ class Orchestrator:
         n_open = sum(1 for t in self.db.tender_payloads(pid) if t.get("status") == "open")
         docs = sum(len(t.get("documents") or []) for t in tenders)
         ctx.log(f"Committed: {stats}")
-        if res.doc_tenders_with_links and res.doc_blocked and res.doc_tenders_with_files == 0:
-            kind = next(iter(res.doc_blocked))
-            what = {"login": "require a login", "captcha": "require solving a captcha",
-                    "forbidden": "are refused by the server (HTTP 403 — firewall, rate limit "
-                                 "or access restriction)"}.get(kind, f"are blocked ({kind})")
-            reason = (f"Tender list readable ({len(tenders)} tenders, {n_open} open) but the "
-                      f"documents {what}; cannot deliver documents")
-            self.db.update_portal(pid, state="failed", reason=reason,
+        if blocked_reason:
+            self.db.update_portal(pid, state="failed", reason=blocked_reason,
                                   hints=json.dumps({"docsBlocked": kind}),
                                   good_count=len(tenders), good_profile=prof)
-            ctx.log(reason)
-            return False, [reason], len(tenders)
+            ctx.log(blocked_reason)
+            return False, [blocked_reason], len(tenders)
         extra = ""
         if res.skipped_large:
             extra += f"; {res.skipped_large} files over 250 MB skipped"
@@ -293,6 +301,8 @@ class Orchestrator:
             await asyncio.sleep(2)
             if await self._try(ctx, fetcher, self.db.get_recipe(pid)):
                 return self._repaired(ctx, "Recovered on retry (transient problem)")
+            if self._finish_if_docs_blocked(ctx):
+                return
             # 2. previous recipe versions
             for v in range(current_v - 1, max(0, current_v - 4), -1):
                 old = self.db.get_recipe(pid, v)
@@ -301,6 +311,8 @@ class Orchestrator:
                     self.db.set_recipe_version(pid, v)
                     self.db.save_recipe(pid, old, "rollback")
                     return self._repaired(ctx, f"Recovered with earlier recipe v{v}")
+                if self._finish_if_docs_blocked(ctx):
+                    return
             if current_v <= 1:
                 ctx.log("Step 2: no earlier recipe versions to try")
             # 3. LLM repair
@@ -330,6 +342,8 @@ class Orchestrator:
             if await self._try(ctx, fetcher, new, repair_mode=True, out_problems=last_problems):
                 v = self.db.save_recipe(pid, new, "repair")
                 return self._repaired(ctx, f"Re-learned the portal (recipe v{v})")
+            if self._finish_if_docs_blocked(ctx):
+                return
             if same:
                 return self._repair_failed(
                     ctx, "The portal is read exactly as before but now shows a different picture ("
@@ -358,6 +372,15 @@ class Orchestrator:
         ctx.log(msg)
         self.db.finish_run(ctx.rid, "ok", msg, ctx.steps, ctx.usage.as_dict(),
                            self.db.tender_count(ctx.pid))
+
+    def _finish_if_docs_blocked(self, ctx: RunCtx) -> bool:
+        portal = self.db.get_portal(ctx.pid)
+        if not portal or portal["state"] != "failed" or not json.loads(
+                portal.get("hints") or "{}").get("docsBlocked"):
+            return False
+        self.db.finish_run(ctx.rid, "failed", portal["reason"], ctx.steps,
+                           ctx.usage.as_dict(), self.db.tender_count(ctx.pid))
+        return True
 
     def _repair_failed(self, ctx: RunCtx, msg: str) -> None:
         ctx.log(msg)

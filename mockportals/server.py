@@ -288,7 +288,7 @@ def multi_list():
     rows = "".join(f"""<div class="avis"><span class="ref">{t['id']}</span>
 <a class="objet" href="/multi/avis/{t['num']}">{escape(t['title'])}</a>
 <span class="acheteur">{escape(t['buyer'])}</span>
-<span class="limite">Date limite : {t['deadline'].astimezone(PARIS).strftime('%d/%m/%Y à %Hh%M')}</span>
+<span class="limite">Date limite : {t['deadline'].astimezone(PARIS).strftime('%d/%m/%Y')} à {t['deadline'].astimezone(PARIS).strftime('%Hh%M')}</span>
 </div>""" for t in items)
     return page_resp("Avis de marchés", f"<h1>Consultations en cours</h1>{rows}")
 

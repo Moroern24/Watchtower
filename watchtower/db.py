@@ -5,6 +5,7 @@ import json
 import sqlite3
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -75,6 +76,17 @@ class DB:
     def x(self, sql: str, args: tuple = ()) -> None:
         with self.lock:
             self.conn.execute(sql, args)
+
+    @contextmanager
+    def transaction(self):
+        with self.lock:
+            self.conn.execute("BEGIN")
+            try:
+                yield
+                self.conn.execute("COMMIT")
+            except BaseException:
+                self.conn.execute("ROLLBACK")
+                raise
 
     # ---------- portals ----------
     def create_portal(self, url: str, norm_url: str) -> tuple[str, bool]:

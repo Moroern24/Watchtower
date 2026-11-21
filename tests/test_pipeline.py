@@ -9,7 +9,8 @@ from watchtower import validate
 from watchtower.config import settings
 from watchtower.db import DB
 from watchtower.fetcher import Fetcher
-from watchtower.pipeline import commit, execute, public_tender
+from watchtower.orchestrator import Orchestrator, RunCtx
+from watchtower.pipeline import ReadResult, commit, execute, public_tender
 from watchtower.recipe import parse_recipe
 
 
@@ -67,11 +68,70 @@ def test_incremental_and_unlisted_closed(mock_base, db):
     httpx.get(mock_base + "/control/hide", params={"id": "VG-2026-1003"})
     recipe, res2, steps = run(_read(db, R.ssr_v1(mock_base), previous=db.get_tenders("p1")))
     assert any("reused" in s for s in steps)
+    assert res2.doc_tenders_with_files == sum(bool(t["documents"]) for t in res2.tenders)
     stats = commit(db, "p1", recipe, res2)
     assert stats["closedUnlisted"] == 1 and stats["changed"] == 0
     rows = db.get_tenders("p1")
     assert json.loads(rows["VG-2026-1003"]["data"])["status"] == "closed"
     assert rows["VG-2026-1000"]["last_changed_at"] == before["VG-2026-1000"]
+
+
+def test_snapshot_commit_rolls_back_on_error(db, monkeypatch):
+    recipe = parse_recipe(R.simple("https://example.com", "captcha"))
+    old = ReadResult(tenders=[{"id": "1", "title": "Original"}, {"id": "2", "title": "Other"}])
+    commit(db, "p1", recipe, old)
+    before = db.get_tenders("p1")
+    new = ReadResult(tenders=[{"id": "1", "title": "Changed"}, {"id": "2", "title": "Changed"}])
+    original_upsert = db.upsert_tender
+    calls = 0
+
+    def fail_second(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("storage failure")
+        original_upsert(*args, **kwargs)
+
+    monkeypatch.setattr(db, "upsert_tender", fail_second)
+    with pytest.raises(RuntimeError, match="storage failure"):
+        commit(db, "p1", recipe, new)
+    assert db.get_tenders("p1") == before
+
+
+def test_blocked_documents_preserve_last_good_snapshot(db, monkeypatch):
+    recipe = parse_recipe(R.simple("https://example.com", "captcha"))
+    pid, _ = db.create_portal("https://example.com", "https://example.com/")
+    good = {"id": "1", "url": "https://example.com/1", "title": "Original",
+            "documents": [{"fileName": "file.pdf"}]}
+    commit(db, pid, recipe, ReadResult(tenders=[good]))
+    db.update_portal(pid, state="serving", good_count=1, good_profile=validate.profile([good]))
+    before = db.get_tenders(pid)
+    blocked = ReadResult(tenders=[{**good, "title": "Changed", "documents": []}],
+                         doc_tenders_with_links=1, doc_blocked={"login": 1})
+
+    async def blocked_read(*args, **kwargs):
+        return blocked
+
+    monkeypatch.setattr("watchtower.orchestrator.execute", blocked_read)
+    orch = Orchestrator(db)
+    ctx = RunCtx(db, pid, db.create_run(pid, "read"))
+    ok, _, _ = run(orch._read_with(ctx, None, recipe, first=False))
+    assert not ok
+    assert db.get_portal(pid)["state"] == "failed"
+    assert "login" in db.get_portal(pid)["reason"]
+    assert db.get_tenders(pid) == before
+
+    db.save_recipe(pid, R.simple("https://example.com", "captcha"), "learn")
+    repair_id = db.create_run(pid, "repair")
+
+    async def no_wait(_):
+        pass
+
+    monkeypatch.setattr("watchtower.orchestrator.asyncio.sleep", no_wait)
+    run(orch._repair(RunCtx(db, pid, repair_id), ["layout changed"]))
+    assert db.list_runs(pid)[0]["result"] == "failed"
+    assert "login" in db.get_portal(pid)["reason"]
+    assert db.get_tenders(pid) == before
 
 
 def test_layout_switch_is_noticed(mock_base, db):

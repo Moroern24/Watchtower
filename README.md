@@ -4,20 +4,26 @@ Watchtower connects public-tender portals on its own, watches them and repairs i
 
 ```bash
 docker build -t watchtower .
-docker run -p 8080:8080 -e ANTHROPIC_API_KEY=sk-ant-... -v wt-data:/data watchtower
-# any other provider works too, e.g.:  -e GEMINI_API_KEY=... -e LLM_MODEL=<model name>
+copy .env.example .env
+# set GEMINI_API_KEY in .env, then:
+docker run --name watchtower --env-file .env -p 127.0.0.1:8080:8080 -v wt-data:/data watchtower
 # open http://localhost:8080 , or:
 curl -XPOST localhost:8080/portals -H 'content-type: application/json' -d '{"url":"https://…"}'
 ```
+
+Get a key from [Google AI Studio](https://aistudio.google.com/api-keys). Put it after
+`GEMINI_API_KEY=` in the ignored `.env` file; never paste it into source code or commit it.
+If replacing an existing container, run `docker stop watchtower; docker rm watchtower` first;
+the `wt-data` volume preserves portal data.
 
 ## How it works
 
 1. **Attach** (LLM, once per portal). Watchtower fetches the address it was given.
    - It shrinks the page into a compact DOM skeleton plus a link list, so it costs a few thousand tokens instead of the full HTML.
-   - Claude decides whether this page is the tender list. If it is not (a notice summary, a home page, a search form), Claude says which link to follow, for at most 4 hops.
+   - The selected model decides whether this page is the tender list. If it is not (a notice summary, a home page, a search form), it says which link to follow, for at most 4 hops.
    - For JavaScript apps, a headless browser renders the page once and records the JSON API calls the app makes. The data source then becomes that API, read over plain HTTP.
 
-   Claude writes a **recipe**: a declarative JSON spec, not code. It says:
+   The selected model writes a **recipe**: a declarative JSON spec, not code. It says:
    - where the list is and how it paginates (link, page, offset, or POST body);
    - which CSS selector, label or JSON path holds each field;
    - where the detail page is;
@@ -99,7 +105,7 @@ root (git-ignored); real environment variables take precedence.
 | `LLM_BASE_URL` / `LLM_API_KEY` | – | Any OpenAI-compatible endpoint |
 | `LLM_MAX_OUTPUT_TOKENS` | `8192` | Output cap for OpenAI-compatible models |
 | `PROMPT_PAGE_CHARS` | `45000` | Compacted page size per prompt (lower for small-context models) |
-| `MODEL_PRICE_INPUT_PER_MTOK` / `MODEL_PRICE_OUTPUT_PER_MTOK` | `4` / `20` for Anthropic, `0` otherwise | USD prices used for the cost display |
+| `MODEL_PRICE_INPUT_PER_MTOK` / `MODEL_PRICE_OUTPUT_PER_MTOK` | `1.5` / `7.5` in `.env.example` for Gemini 3.8 Flash | Estimated USD per million tokens, used for cost display |
 | `READ_INTERVAL_MIN` | `30` | Default automatic check interval (change it live in Settings) |
 | `REPAIR_COOLDOWN_MIN` | `120` | Default wait after a failed model repair (change it live in Settings) |
 | `MAX_TENDERS_PER_PORTAL` | `500` | Safety cap per read |
@@ -146,13 +152,16 @@ Known limits — deploy accordingly:
 
 These are estimates. The real figure for each portal and each run is measured from the API's token usage and shown on the dashboard, and in `GET /portals/{id}/runs` as `llmCalls`, `inputTokens`, `outputTokens` and `costUsd`.
 
-| Phase | Model calls | Tokens (approx.) | Cost with Opus 5.5 ($4 / $20 per MTok) |
+| Phase | Model calls | Tokens (approx.) | Gemini 3.8 Flash estimate ($1.50 / $7.50 per MTok) |
 |---|---|---|---|
-| Attach | 4–8 (discover, list fix, detail, documents page, verify) | 40–90k input, 8–20k output | **≈ $0.30–0.80, once** |
+| Attach | 4–8 (discover, list fix, detail, documents page, verify) | 40–90k input, 8–20k output | **≈ $0.12–0.29, once** |
 | Regular read | **0** | 0 | **$0** |
-| Repair (only when a portal changes) | 4–8 | the same as attach | ≈ $0.30–0.80 per real layout change |
+| Repair (only when a portal changes) | 4–8 | the same as attach | ≈ $0.12–0.29 per real layout change |
 
-Pages are compacted before they are sent: repeated rows are collapsed, scripts are dropped, and texts are truncated. This keeps the input small. With a cheaper model (`LLM_MODEL=claude-sonnet-5-5`), costs are about half; other providers cost what their price list says (set `MODEL_PRICE_*` to see it on the dashboard).
+These are illustrative estimates, not a quote. Actual model prices may differ or change; set
+`MODEL_PRICE_INPUT_PER_MTOK` and `MODEL_PRICE_OUTPUT_PER_MTOK` in `.env` to match your model.
+Pages are compacted before they are sent: repeated rows are collapsed, scripts are dropped, and
+texts are truncated. Regular reads cost $0 because they do not call the model.
 
 ## Development
 

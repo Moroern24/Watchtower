@@ -48,6 +48,8 @@ async def execute(db: DB, pid: str | None, recipe: Recipe, fetcher: Fetcher, ste
             if data.get("_complete"):
                 res.list_hashes[data["id"]] = item.list_hash
                 res.tenders.append(data)
+                if data.get("documents"):
+                    res.doc_tenders_with_files += 1
                 reused += 1
                 continue
         try:
@@ -111,6 +113,11 @@ def content_hash(t: dict) -> str:
 
 def commit(db: DB, pid: str, recipe: Recipe, result: ReadResult) -> dict:
     """Write a validated snapshot. Returns counts."""
+    with db.transaction():
+        return _commit_snapshot(db, pid, recipe, result)
+
+
+def _commit_snapshot(db: DB, pid: str, recipe: Recipe, result: ReadResult) -> dict:
     now = now_iso()
     existing = db.get_tenders(pid)
     seen = set()

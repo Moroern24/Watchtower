@@ -1,5 +1,5 @@
 """DEV ONLY (not in the Docker image): the real app, but with the test suite's scripted learner
-instead of Claude, so the dashboard can be explored without an API key.
+instead of a live model, so the dashboard can be explored without an API key.
 
     python -m uvicorn mockportals.server:app --port 8090
     python -m uvicorn devtools.demo:app --port 8080
