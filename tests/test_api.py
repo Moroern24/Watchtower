@@ -94,14 +94,17 @@ def test_contract_and_attach(client, mock_base):
 
 
 def test_refresh_returns_running_run(client, mock_base):
+    learns_before = CALLS["learn"]
     pid = client.post("/portals", json={"url": f"{mock_base}/spa/"}).json()["id"]
     r1 = client.post(f"/portals/{pid}/refresh")
     r2 = client.post(f"/portals/{pid}/refresh")
     assert r1.status_code == 202 and r1.json()["runId"] == r2.json()["runId"]
     wait_state(client, pid, {"serving", "failed"})
+    assert CALLS["learn"] == learns_before + 1
     r3 = client.post(f"/portals/{pid}/refresh").json()["runId"]
     assert r3 != r1.json()["runId"]
     wait_state(client, pid, {"serving"})
+    assert CALLS["learn"] == learns_before + 1
 
 
 def test_layout_change_heals(client, mock_base):

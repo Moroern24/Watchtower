@@ -51,6 +51,8 @@ class Settings:
     prompt_page_chars: int = field(default_factory=lambda: _int("PROMPT_PAGE_CHARS", 45000))
     read_interval_min: int = field(default_factory=lambda: _int("READ_INTERVAL_MIN", 30))
     repair_cooldown_min: int = field(default_factory=lambda: _int("REPAIR_COOLDOWN_MIN", 120))
+    gemini_min_request_interval_sec: float = field(
+        default_factory=lambda: _float("GEMINI_MIN_REQUEST_INTERVAL_SEC", 3.0))
     min_request_interval: float = field(default_factory=lambda: _float("MIN_REQUEST_INTERVAL_SEC", 1.05))
     max_concurrent_runs: int = field(default_factory=lambda: _int("MAX_CONCURRENT_RUNS", 8))
     max_tenders: int = field(default_factory=lambda: _int("MAX_TENDERS_PER_PORTAL", 500))

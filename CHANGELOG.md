@@ -1,6 +1,7 @@
 # CHANGELOG
 
 ## Unreleased
+- Serialize Gemini requests, space them by at least 3 seconds, and honor exponential/`Retry-After` backoff.
 - Configure Gemini through the provider-agnostic adapter with `GEMINI_API_KEY` and `LLM_MODEL`.
 - Install libatomic1 before Playwright so the linux/amd64 Docker image builds and Chromium starts.
 - Preserve the last good tender snapshot when document access is blocked, including during repair.

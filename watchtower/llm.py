@@ -15,6 +15,10 @@ import logging
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from threading import Lock
+from weakref import WeakKeyDictionary
 
 import httpx
 
@@ -35,6 +39,24 @@ PRESETS = [
 ]
 ANTHROPIC_DEFAULT_MODEL = "claude-opus-5-5"
 _sleep = asyncio.sleep  # indirection so tests can skip back-off waits
+_gemini_gates = WeakKeyDictionary()
+_gemini_gates_lock = Lock()
+
+
+@dataclass
+class _GeminiGate:
+    lock: asyncio.Lock
+    last_request_at: float | None = None
+
+
+def _gemini_gate() -> _GeminiGate:
+    loop = asyncio.get_running_loop()
+    with _gemini_gates_lock:
+        gate = _gemini_gates.get(loop)
+        if gate is None:
+            gate = _GeminiGate(asyncio.Lock())
+            _gemini_gates[loop] = gate
+        return gate
 
 
 @dataclass
@@ -237,7 +259,7 @@ class LLM:
         async with httpx.AsyncClient(timeout=settings.llm_timeout, transport=self.transport) as c:
             for attempt in range(6):
                 try:
-                    r = await c.post(url, json=body, headers=headers)
+                    r = await _post_model_request(c, p, url, body, headers)
                 except httpx.HTTPError as e:
                     if attempt < 2:
                         await _sleep(2 * (attempt + 1))
@@ -273,11 +295,40 @@ class LLM:
         raise PortalError("llm", f"Model API ({p.name}) did not answer")
 
 
+async def _post_model_request(c: httpx.AsyncClient, p: Provider, url: str, body: dict,
+                              headers: dict) -> httpx.Response:
+    if p.name != "gemini":
+        return await c.post(url, json=body, headers=headers)
+
+    gate = _gemini_gate()
+    loop = asyncio.get_running_loop()
+    async with gate.lock:
+        if gate.last_request_at is not None:
+            delay = settings.gemini_min_request_interval_sec - (
+                loop.time() - gate.last_request_at)
+            if delay > 0:
+                await _sleep(delay)
+        try:
+            return await c.post(url, json=body, headers=headers)
+        finally:
+            gate.last_request_at = loop.time()
+
+
 def _retry_after(r: httpx.Response, attempt: int) -> float:
+    backoff = 2 ** (attempt + 1)
+    header = r.headers.get("retry-after")
+    if not header:
+        return backoff
     try:
-        return min(30.0, float(r.headers.get("retry-after", "")))
+        return max(backoff, float(header))
     except ValueError:
-        return min(30.0, 2.0 * 2 ** attempt)
+        try:
+            retry_at = parsedate_to_datetime(header)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(backoff, (retry_at - datetime.now(timezone.utc)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return backoff
 
 
 def _err_text(r: httpx.Response) -> str:

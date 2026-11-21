@@ -93,7 +93,9 @@ Everything except Anthropic goes through one OpenAI-compatible adapter (`/chat/c
 mode when the provider supports it, automatic back-off on 429). Use the exact model name from your
 provider's documentation. Pick a model with a context window of at least ~32k tokens, or lower
 `PROMPT_PAGE_CHARS`. For local development the variables can live in a `.env` file in the project
-root (git-ignored); real environment variables take precedence.
+root (git-ignored); real environment variables take precedence. Gemini requests are serialized and
+spaced at least 3 seconds apart by default. Successful scheduled reads use the saved Python recipe
+and make no model calls; the model is used when learning a portal and, if needed, repairing one.
 
 ## Environment variables
 
@@ -106,6 +108,7 @@ root (git-ignored); real environment variables take precedence.
 | `LLM_MAX_OUTPUT_TOKENS` | `8192` | Output cap for OpenAI-compatible models |
 | `PROMPT_PAGE_CHARS` | `45000` | Compacted page size per prompt (lower for small-context models) |
 | `MODEL_PRICE_INPUT_PER_MTOK` / `MODEL_PRICE_OUTPUT_PER_MTOK` | `1.5` / `7.5` in `.env.example` for Gemini 3.8 Flash | Estimated USD per million tokens, used for cost display |
+| `GEMINI_MIN_REQUEST_INTERVAL_SEC` | `3` | Minimum time between Gemini requests |
 | `READ_INTERVAL_MIN` | `30` | Default automatic check interval (change it live in Settings) |
 | `REPAIR_COOLDOWN_MIN` | `120` | Default wait after a failed model repair (change it live in Settings) |
 | `MAX_TENDERS_PER_PORTAL` | `500` | Safety cap per read |

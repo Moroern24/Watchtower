@@ -1,6 +1,8 @@
 """Provider selection and the OpenAI-compatible adapter, against a fake server (no network)."""
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 
 import httpx
 import pytest
@@ -61,8 +63,9 @@ def _server(responses, seen):
     def handler(request: httpx.Request):
         seen.append({"url": str(request.url), "auth": request.headers.get("authorization"),
                      "body": json.loads(request.content)})
-        status, payload = responses.pop(0)
-        return httpx.Response(status, json=payload)
+        status, payload, *response_headers = responses.pop(0)
+        headers = response_headers[0] if response_headers else None
+        return httpx.Response(status, json=payload, headers=headers, request=request)
     return httpx.MockTransport(handler)
 
 
@@ -73,6 +76,10 @@ def _ok(content, pt=1000, ct=200):
 
 def _prov(price_in=1.0, price_out=2.0):
     return llm.Provider("groq", "openai", "https://api.example/v1", "k-123", "m-1", price_in, price_out)
+
+
+def _gemini_prov():
+    return llm.Provider("gemini", "openai", "https://api.example/v1", "g-key", "m-1", 1.0, 2.0)
 
 
 def test_openai_compatible_call_and_usage():
@@ -90,13 +97,20 @@ def test_openai_compatible_call_and_usage():
     assert abs(u.cost_usd - (1000 * 1.0 + 200 * 2.0) / 1e6) < 1e-12
 
 
-def test_retries_rate_limit_and_drops_unsupported_json_mode():
+def test_retries_rate_limit_and_drops_unsupported_json_mode(monkeypatch):
     seen = []
-    t = _server([(429, {"error": {"message": "slow down"}}),
+    delays = []
+
+    async def record_delay(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr(llm, "_sleep", record_delay)
+    t = _server([(429, {"error": {"message": "slow down"}}, {"Retry-After": "5"}),
                  (400, {"error": {"message": "response_format json_object is not supported"}}),
                  _ok('Here you go: ```json\n{"recipe": {"x": 1}}\n```')], seen)
     out = asyncio.run(llm.LLM(prov=_prov(), transport=t).ask_json("S", "U"))
     assert out == {"recipe": {"x": 1}}
+    assert delays == [5.0]
     assert "response_format" in seen[1]["body"] and "response_format" not in seen[2]["body"]
 
 
@@ -116,6 +130,55 @@ def test_no_provider_is_a_clear_error():
     with pytest.raises(PortalError) as e:
         asyncio.run(llm.LLM().ask_json("S", "U"))
     assert "No model configured" in e.value.message
+
+
+def test_exponential_backoff_for_repeated_429(monkeypatch):
+    seen = []
+    delays = []
+
+    async def record_delay(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr(llm, "_sleep", record_delay)
+    t = _server([(429, {"error": {"message": "slow down"}})] * 6, seen)
+    with pytest.raises(PortalError, match="429"):
+        asyncio.run(llm.LLM(prov=_prov(), transport=t).ask_json("S", "U"))
+    assert delays == [2, 4, 8, 16, 32]
+    assert len(seen) == 6
+
+
+def test_retry_after_http_date():
+    retry_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    response = httpx.Response(
+        429, headers={"Retry-After": format_datetime(retry_at, usegmt=True)})
+    assert 20 <= llm._retry_after(response, 0) <= 30
+
+
+def test_gemini_requests_are_serialized_and_spaced(monkeypatch):
+    monkeypatch.setattr(config.settings, "gemini_min_request_interval_sec", 0.03)
+    monkeypatch.setattr(llm, "_sleep", asyncio.sleep)
+    active = 0
+    maximum_active = 0
+    starts = []
+
+    class TrackingTransport(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            nonlocal active, maximum_active
+            active += 1
+            maximum_active = max(maximum_active, active)
+            starts.append(asyncio.get_running_loop().time())
+            await asyncio.sleep(0.01)
+            active -= 1
+            return httpx.Response(200, json=_ok('{"ok": true}')[1], request=request)
+
+    async def run_two_requests():
+        transport = TrackingTransport()
+        models = [llm.LLM(prov=_gemini_prov(), transport=transport) for _ in range(2)]
+        await asyncio.gather(*(model.ask_json("S", "U") for model in models))
+
+    asyncio.run(run_two_requests())
+    assert maximum_active == 1
+    assert starts[1] - starts[0] >= 0.03
 
 
 def test_dotenv_does_not_override_real_env(tmp_path, monkeypatch):
